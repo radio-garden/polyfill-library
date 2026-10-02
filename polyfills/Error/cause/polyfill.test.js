@@ -1,3 +1,5 @@
+/* global Reflect */
+
 var testCases = [
 	{_Error: Error, name: 'Error', arity: 1},
 	{_Error: EvalError, name: 'EvalError', arity: 1},
@@ -133,5 +135,24 @@ testCases.forEach(function (testCase) {
 				});
 			}
 		}
+
+		var args = arity === 2 ? [[], 'm'] : ['m'];
+
+		if (typeof Reflect === 'object' && typeof Reflect.construct === 'function') {
+			it('uses the prototype of newTarget with Reflect.construct', function () {
+				function Unrelated() {}
+				var error = Reflect.construct(_Error, args, Unrelated);
+				proclaim.strictEqual(Object.getPrototypeOf(error), Unrelated.prototype);
+				proclaim.equal(error.message, 'm');
+			});
+		}
+
+		it('ignores the this value when called as a method', function () {
+			var object = { make: _Error };
+			var error = arity === 2 ? object.make([], 'm') : object.make('m');
+			proclaim.isInstanceOf(error, _Error);
+			proclaim.strictEqual(Object.getPrototypeOf(error), _Error.prototype);
+			proclaim.equal(error.message, 'm');
+		});
 	});
 });
