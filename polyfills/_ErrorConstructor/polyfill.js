@@ -20,15 +20,14 @@ var _ErrorConstructor;
 	function _makeErrorConstructor (name, _Error) {
 		var _NativeError = _nativeErrors[name];
 		var arity = _Error.length;
-		return function () {
+		// `prototype` is new.target's prototype, or undefined for a call.
+		return function (prototype, args) {
 			var O = arity === 2
-				? _NativeError.call(null, arguments[0], arguments[1])
-				: _NativeError.call(null, arguments[0]);
-			InstallErrorCause(O, arguments.length > arity && arguments[arity]);
-			// Reached through `super()` of a subclass: `this` carries new.target's
-			// prototype, and the object returned here becomes the instance.
-			if (this instanceof _Error && Object.getPrototypeOf(this) !== _Error.prototype) {
-				O = Object.setPrototypeOf(O, Object.getPrototypeOf(this));
+				? _NativeError.call(null, args[0], args[1])
+				: _NativeError.call(null, args[0]);
+			InstallErrorCause(O, args.length > arity && args[arity]);
+			if (Type(prototype) === 'object' && prototype !== _Error.prototype) {
+				O = Object.setPrototypeOf(O, prototype);
 			} else {
 				CreateMethodProperty(O, 'constructor', _Error);
 			}
@@ -50,19 +49,45 @@ var _ErrorConstructor;
 		return _Error;
 	}
 
-	var _newErrors = {
-		Error:          function Error          (_message) { return _errorConstructors.Error.apply(this, arguments); },
-		EvalError:      function EvalError      (_message) { return _errorConstructors.EvalError.apply(this, arguments); },
-		RangeError:     function RangeError     (_message) { return _errorConstructors.RangeError.apply(this, arguments); },
-		ReferenceError: function ReferenceError (_message) { return _errorConstructors.ReferenceError.apply(this, arguments); },
-		SyntaxError:    function SyntaxError    (_message) { return _errorConstructors.SyntaxError.apply(this, arguments); },
-		TypeError:      function TypeError      (_message) { return _errorConstructors.TypeError.apply(this, arguments); },
-		URIError:       function URIError       (_message) { return _errorConstructors.URIError.apply(this, arguments); },
-		AggregateError: function AggregateError (_errors, _message) { return _errorConstructors.AggregateError.apply(this, arguments); }
-	};
-
 	var _nativeErrors = {};
 	var _errorConstructors = {};
+
+	var _parameters = {
+		Error:          '_message',
+		EvalError:      '_message',
+		RangeError:     '_message',
+		ReferenceError: '_message',
+		SyntaxError:    '_message',
+		TypeError:      '_message',
+		URIError:       '_message',
+		AggregateError: '_errors, _message'
+	};
+
+	// Without new.target, a subclass's super() is recognised by `this` inheriting from the constructor.
+	function _thisPrototype (that, _Error) {
+		return that instanceof _Error ? Object.getPrototypeOf(that) : undefined;
+	}
+
+	var _newErrors = {};
+	try {
+		for (var _name in _parameters) {
+			_newErrors[_name] = Function('_errorConstructors',
+				'return function ' + _name + ' (' + _parameters[_name] + ') { ' +
+				'return _errorConstructors.' + _name + '(new.target && new.target.prototype, arguments); };'
+			)(_errorConstructors);
+		}
+	} catch (_) {
+		_newErrors = {
+			Error:          function Error          (_message) { return _errorConstructors.Error(_thisPrototype(this, _newErrors.Error), arguments); },
+			EvalError:      function EvalError      (_message) { return _errorConstructors.EvalError(_thisPrototype(this, _newErrors.EvalError), arguments); },
+			RangeError:     function RangeError     (_message) { return _errorConstructors.RangeError(_thisPrototype(this, _newErrors.RangeError), arguments); },
+			ReferenceError: function ReferenceError (_message) { return _errorConstructors.ReferenceError(_thisPrototype(this, _newErrors.ReferenceError), arguments); },
+			SyntaxError:    function SyntaxError    (_message) { return _errorConstructors.SyntaxError(_thisPrototype(this, _newErrors.SyntaxError), arguments); },
+			TypeError:      function TypeError      (_message) { return _errorConstructors.TypeError(_thisPrototype(this, _newErrors.TypeError), arguments); },
+			URIError:       function URIError       (_message) { return _errorConstructors.URIError(_thisPrototype(this, _newErrors.URIError), arguments); },
+			AggregateError: function AggregateError (_errors, _message) { return _errorConstructors.AggregateError(_thisPrototype(this, _newErrors.AggregateError), arguments); }
+		};
+	}
 
 	_ErrorConstructor = function (name) {
 		_nativeErrors[name] = self[name];

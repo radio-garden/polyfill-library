@@ -138,7 +138,8 @@ testCases.forEach(function (testCase) {
 
 		var args = arity === 2 ? [[], 'm'] : ['m'];
 
-		if (typeof Reflect === 'object' && typeof Reflect.construct === 'function') {
+		// Where new.target cannot be compiled, the polyfill falls back to recognising subclasses by `this`.
+		if (makeSubclass && typeof Reflect === 'object' && typeof Reflect.construct === 'function') {
 			it('uses the prototype of newTarget with Reflect.construct', function () {
 				function Unrelated() {}
 				var error = Reflect.construct(_Error, args, Unrelated);
