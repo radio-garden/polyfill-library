@@ -1,4 +1,4 @@
-/* global Call, CreateIterResultObject, CreateMethodProperty, Get, GetMethod, Iterator, IteratorClose, IteratorStepValue, NormalCompletion, Symbol, ThrowCompletion, Type */
+/* global Call, CreateIterResultObject, CreateMethodProperty, Get, GetMethod, Iterator, IteratorClose, IteratorStepValue, NormalCompletion, Symbol, Type */
 
 var IteratorHelperPrototype = (function () {
 	var iterator = Object.create(Iterator.prototype);
@@ -42,65 +42,61 @@ CreateMethodProperty(Iterator, "concat", function concat(/* ...items */) {
 	// 3. Let closure be a new Abstract Closure with no parameters that captures iterables and performs the following steps when called:
 	// 4. Let gen be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
 	var gen = Object.create(IteratorHelperPrototype);
-	gen["[[Done]]"] = false;
+	var done = false;
 
 	CreateMethodProperty(gen, "next", function () {
-		if (iterables.length === 0) {
-			this["[[Done]]"] = true;
-		}
-		if (this["[[Done]]"] === true) {
-			return CreateIterResultObject(undefined, true);
-		}
-		// a. For each Record iterable of iterables, do
-		// Polyfill-library - pull the first iterable; we will `shift` it when it's done
-		var iterable = iterables[0];
-		if (!iterable._iteratorRecord) {
-			// i. Let iter be ? Call(iterable.[[OpenMethod]], iterable.[[Iterable]]).
-			var iter = Call(iterable["[[OpenMethod]]"], iterable["[[Iterable]]"]);
-			// ii. If iter is not an Object, throw a TypeError exception.
-			if (Type(iter) !== "object") {
-				this["[[Done]]"] = true;
-				throw new TypeError("iter is not an object");
-			}
-			// iii. Let iteratorRecord be ? GetIteratorDirect(iter).
-			iterable._iteratorRecord = {
-				"[[Iterator]]": iter,
-				"[[NextMethod]]": Get(iter, "next")
-			};
-		}
-		var iteratorRecord = iterable._iteratorRecord;
-		// iv. Let innerAlive be true.
-		// v. Repeat, while innerAlive is true,
 		try {
-			// 1. Let innerValue be ? IteratorStepValue(iteratorRecord).
-			var innerValue = IteratorStepValue(iteratorRecord);
-			// 2. If innerValue is done, then
-			if (innerValue === IteratorStepValue.DONE) {
-				// a. Set innerAlive to false.
-				iterables.shift();
-				return this.next();
+			// a. For each Record iterable of iterables, do
+			// Polyfill-library - the current iterable is the first; we `shift` it when it's done
+			while (!done && iterables.length > 0) {
+				var iterable = iterables[0];
+				if (!iterable._iteratorRecord) {
+					// i. Let iter be ? Call(iterable.[[OpenMethod]], iterable.[[Iterable]]).
+					var iter = Call(iterable["[[OpenMethod]]"], iterable["[[Iterable]]"]);
+					// ii. If iter is not an Object, throw a TypeError exception.
+					if (Type(iter) !== "object") {
+						throw new TypeError("iter is not an object");
+					}
+					// iii. Let iteratorRecord be ? GetIteratorDirect(iter).
+					iterable._iteratorRecord = {
+						"[[Iterator]]": iter,
+						"[[NextMethod]]": Get(iter, "next")
+					};
+				}
+				// iv. Let innerAlive be true.
+				// v. Repeat, while innerAlive is true,
+				// 1. Let innerValue be ? IteratorStepValue(iteratorRecord).
+				var innerValue = IteratorStepValue(iterable._iteratorRecord);
+				// 2. If innerValue is done, then
+				if (innerValue === IteratorStepValue.DONE) {
+					// a. Set innerAlive to false.
+					iterables.shift();
+				}
+				// 3. Else,
+				else {
+					// a. Let completion be Completion(Yield(innerValue)).
+					// b. If completion is an abrupt completion, then
+					// i. Return ? IteratorClose(iteratorRecord, completion).
+					// Polyfill-library - only `return` resumes a Yield abruptly; it closes the iterator below
+					return CreateIterResultObject(innerValue, false);
+				}
 			}
-			// 3. Else,
-			else {
-				// a. Let completion be Completion(Yield(innerValue)).
-				return CreateIterResultObject(innerValue, false);
-			}
-		}
-		// b. If completion is an abrupt completion, then
-		catch (error) {
-			// i. Return ? IteratorClose(iteratorRecord, completion).
-			this["[[Done]]"] = true;
-			return IteratorClose(iteratorRecord, ThrowCompletion(error));
+		} catch (error) {
+			done = true;
+			throw error;
 		}
 		// b. Return ReturnCompletion(undefined).
+		done = true;
+		return CreateIterResultObject(undefined, true);
 	});
 
 	CreateMethodProperty(gen, "return", function () {
 		var iterable = iterables[0];
-		if (iterable && iterable._iteratorRecord) {
+		var wasDone = done;
+		done = true;
+		if (!wasDone && iterable && iterable._iteratorRecord) {
 			IteratorClose(iterable._iteratorRecord, NormalCompletion());
 		}
-		this["[[Done]]"] = true;
 		return CreateIterResultObject(undefined, true);
 	});
 

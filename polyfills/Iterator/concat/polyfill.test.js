@@ -63,6 +63,51 @@ describe("concat", function () {
 		proclaim.equal(iter.next().value, undefined);
 	});
 
+	it("should not expose its state as own enumerable properties", function () {
+		var iter = Iterator.concat(new TestIterator([1]));
+		proclaim.deepStrictEqual(Object.keys(iter), []);
+		iter.next();
+		proclaim.deepStrictEqual(Object.keys(iter), []);
+	});
+
+	it("should not close an inner iterator whose `next` threw", function () {
+		var returnCalls = 0;
+		var error = new Error("next");
+		var inner = {
+			next: function () {
+				throw error;
+			},
+			"return": function () {
+				returnCalls++;
+				return {};
+			}
+		};
+		var iterable = {};
+		iterable[Symbol.iterator] = function () {
+			return inner;
+		};
+		var iter = Iterator.concat(iterable);
+		try {
+			iter.next();
+			proclaim.fail("expected `next` to throw");
+		} catch (e) {
+			proclaim.strictEqual(e, error);
+		}
+		proclaim.strictEqual(returnCalls, 0);
+		proclaim.isTrue(iter.next().done);
+	});
+
+	it("should skip many exhausted iterables without growing the stack", function () {
+		var iterables = [];
+		for (var i = 0; i < 10000; i++) {
+			iterables.push(new TestIterator([]));
+		}
+		iterables.push(new TestIterator([1]));
+		var iter = Iterator.concat.apply(Iterator, iterables);
+		proclaim.strictEqual(iter.next().value, 1);
+		proclaim.isTrue(iter.next().done);
+	});
+
 	it("should return an object with the right prototype", function () {
 		var iter = Iterator.concat();
 		// use `Iterator.prototype.take` as a way to get `IteratorHelperPrototype`

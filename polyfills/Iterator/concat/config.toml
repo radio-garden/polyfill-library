@@ -8,7 +8,6 @@ dependencies = [
 	"_ESAbstract.IteratorClose",
 	"_ESAbstract.IteratorStepValue",
 	"_ESAbstract.NormalCompletion",
-	"_ESAbstract.ThrowCompletion",
 	"_ESAbstract.Type",
 	"Iterator",
 	"Iterator.prototype.take",
