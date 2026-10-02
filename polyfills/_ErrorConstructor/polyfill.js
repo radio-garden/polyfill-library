@@ -25,6 +25,9 @@ var _ErrorConstructor;
 			var O = arity === 2
 				? _NativeError.call(null, args[0], args[1])
 				: _NativeError.call(null, args[0]);
+			if (typeof _NativeError.captureStackTrace === 'function') {
+				_NativeError.captureStackTrace(O, _Error);
+			}
 			InstallErrorCause(O, args.length > arity && args[arity]);
 			if (Type(prototype) === 'object' && prototype !== _Error.prototype) {
 				O = Object.setPrototypeOf(O, prototype);
@@ -47,6 +50,27 @@ var _ErrorConstructor;
 			Object.defineProperty(_Error, 'name', { value: name, configurable: true });
 		}
 		return _Error;
+	}
+
+	function _forwardStatic (_Error, _NativeError, key) {
+		var descriptor = Object.getOwnPropertyDescriptor(_NativeError, key);
+		Object.defineProperty(_Error, key, {
+			get: function () { return _NativeError[key]; },
+			set: function (value) { _NativeError[key] = value; },
+			enumerable: descriptor.enumerable,
+			configurable: true
+		});
+	}
+
+	// The engine reads statics such as `stackTraceLimit` from the native constructor.
+	function _forwardStatics (name, _Error) {
+		var _NativeError = _nativeErrors[name];
+		var keys = Object.getOwnPropertyNames(_NativeError);
+		for (var i = 0; i < keys.length; i++) {
+			if (!Object.prototype.hasOwnProperty.call(_Error, keys[i])) {
+				_forwardStatic(_Error, _NativeError, keys[i]);
+			}
+		}
 	}
 
 	var _nativeErrors = {};
@@ -93,6 +117,7 @@ var _ErrorConstructor;
 		_nativeErrors[name] = self[name];
 		_errorConstructors[name] = _makeErrorConstructor(name, _newErrors[name]);
 		_inheritErrorPrototype(name, _newErrors[name]);
+		_forwardStatics(name, _newErrors[name]);
 		return _newErrors[name];
 	}
 })();
