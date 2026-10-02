@@ -326,6 +326,30 @@ describe('requestIdleCallback', function () {
 			}, 0);
 		});
 	});
+
+	it('posts to its MessagePort without a targetOrigin', function (done) {
+		if (typeof MessagePort === 'undefined') {
+			done();
+			return;
+		}
+		var postMessage = MessagePort.prototype.postMessage;
+		var argumentCounts = [];
+		MessagePort.prototype.postMessage = function () {
+			argumentCounts.push(arguments.length);
+			return postMessage.apply(this, arguments);
+		};
+		requestIdleCallback(function () {
+			MessagePort.prototype.postMessage = postMessage;
+			try {
+				for (var i = 0; i < argumentCounts.length; i++) {
+					proclaim.equal(argumentCounts[i], 1, 'Expected postMessage calls with one argument, got ' + argumentCounts.join(', '));
+				}
+				done();
+			} catch (error) {
+				done(error);
+			}
+		});
+	});
 });
 
 describe('cancelIdleCallback', function () {
