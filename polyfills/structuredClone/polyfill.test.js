@@ -1,4 +1,4 @@
-/* globals BigInt, Map, Set, Uint32Array */
+/* globals ArrayBuffer, BigInt, DataView, JSON, Map, Set, Uint8Array, Uint32Array */
 
 describe('structuredClone', function () {
 	it('is a function', function () {
@@ -101,6 +101,107 @@ describe('structuredClone', function () {
 			proclaim.equal(deserialized.bigint, bi);
 			proclaim.equal(deserialized.BI.valueOf(), bi);
 		}
+	});
+
+	if (typeof ArrayBuffer === 'function') {
+		it('clones an ArrayBuffer with its contents', function () {
+			var clone = structuredClone(new Uint8Array([1, 2, 3]).buffer);
+			proclaim.equal(Object.prototype.toString.call(clone), '[object ArrayBuffer]');
+			proclaim.equal(clone.byteLength, 3);
+			proclaim.equal(new Uint8Array(clone)[2], 3);
+		});
+	}
+
+	if (typeof DataView === 'function') {
+		it('clones a DataView with its contents', function () {
+			var view = new DataView(new ArrayBuffer(4));
+			view.setUint8(3, 7);
+			var clone = structuredClone(view);
+			proclaim.isInstanceOf(clone, DataView);
+			proclaim.equal(clone.byteLength, 4);
+			proclaim.equal(clone.getUint8(3), 7);
+		});
+
+		it('keeps the offset, length and buffer of a DataView', function () {
+			var buffer = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]).buffer;
+			var clone = structuredClone({ buffer: buffer, view: new DataView(buffer, 4, 2) });
+			proclaim.equal(clone.view.byteOffset, 4);
+			proclaim.equal(clone.view.byteLength, 2);
+			proclaim.equal(clone.view.getUint8(0), 4);
+			proclaim.strictEqual(clone.view.buffer, clone.buffer);
+		});
+	}
+
+	it('clones an invalid Date', function () {
+		var clone = structuredClone(new Date(NaN));
+		proclaim.isInstanceOf(clone, Date);
+		proclaim.isTrue(isNaN(clone.getTime()));
+	});
+
+	it('keeps every RegExp flag', function () {
+		var flags = ['g', 'i', 'm', 's', 'u', 'y'];
+		for (var i = 0; i < flags.length; i++) {
+			var re;
+			try {
+				re = new RegExp('a', flags[i]);
+			} catch (e) {
+				continue;
+			}
+			proclaim.equal(String(structuredClone(re)), '/a/' + flags[i]);
+		}
+	});
+
+	it('keeps the type of a native error', function () {
+		var clone = structuredClone(new TypeError('test'));
+		proclaim.isInstanceOf(clone, TypeError);
+		proclaim.equal(clone.name, 'TypeError');
+		proclaim.equal(clone.message, 'test');
+	});
+
+	it('clones an error with an unknown name as an Error', function () {
+		var error = new Error('test');
+		error.name = 'CustomError';
+		var clone = structuredClone(error);
+		proclaim.isInstanceOf(clone, Error);
+		proclaim.equal(clone.message, 'test');
+	});
+
+	it('clones an error named after a non-error global as an Error', function () {
+		var names = ['Function', 'Array', 'Worker', 'Object'];
+		for (var i = 0; i < names.length; i++) {
+			var error = new Error('test');
+			error.name = names[i];
+			var clone = structuredClone(error);
+			proclaim.isInstanceOf(clone, Error, names[i]);
+			proclaim.equal(clone.name, 'Error', names[i]);
+			proclaim.equal(clone.message, 'test', names[i]);
+		}
+	});
+
+	it('throws on a function, even inside an object', function () {
+		proclaim.throws(function () {
+			structuredClone(function () {});
+		});
+		proclaim.throws(function () {
+			structuredClone({ f: function () {} });
+		});
+	});
+
+	it('clones an own "__proto__" key as a property', function () {
+		var source = JSON.parse('{"__proto__": {"x": 1}}');
+		var clone = structuredClone(source);
+		proclaim.deepStrictEqual(Object.keys(clone), ['__proto__']);
+		proclaim.isUndefined(clone.x);
+	});
+
+
+	it('keeps 0 and -0 apart', function () {
+		var clone = structuredClone([0, -0]);
+		proclaim.equal(1 / clone[0], Infinity);
+		proclaim.equal(1 / clone[1], -Infinity);
+		clone = structuredClone([-0, 0]);
+		proclaim.equal(1 / clone[0], -Infinity);
+		proclaim.equal(1 / clone[1], Infinity);
 	});
 
 	it('preserves references', function () {

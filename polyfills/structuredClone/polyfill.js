@@ -1,4 +1,4 @@
-/* global Map, Set, BigInt */
+/* global Map, Set, BigInt, DataView, Uint8Array */
 "use strict";
 
 (function (env) {
@@ -47,7 +47,18 @@
 					var keys = Object.keys(value);
 					for (i = 0, l = keys.length; i < l; ++i) {
 						var entry = value[keys[i]];
-						object[unpair(entry[0])] = unpair(entry[1]);
+						var key = unpair(entry[0]);
+						var keyValue = unpair(entry[1]);
+						if (key === "__proto__") {
+							Object.defineProperty(object, key, {
+								value: keyValue,
+								configurable: true,
+								enumerable: true,
+								writable: true
+							});
+						} else {
+							object[key] = keyValue;
+						}
 					}
 
 					return object;
@@ -87,6 +98,15 @@
 
 				case "BigInt":
 					return as(Object(BigInt(value)), index);
+
+				case "ArrayBuffer":
+					return as(new Uint8Array(value).buffer, index);
+
+				case "DataView":
+					return as(new DataView(unpair(value.buffer), value.byteOffset, value.byteLength), index);
+
+				case "-0":
+					return -0;
 			}
 
 			return as(new env[type](value), index);
@@ -100,6 +120,7 @@
 	}
 
 	var EMPTY = "";
+	var ERROR_NAMES = ["Error", "EvalError", "RangeError", "ReferenceError", "SyntaxError", "TypeError", "URIError"];
 	var emptyObject = {};
 
 	function typeOf(value) {
@@ -130,21 +151,20 @@
 
 			case "RegExp":
 				return [REGEXP, EMPTY];
+
+			case "DataView":
+				return [ARRAY, asString];
 		}
 
 		if (asString.indexOf("Array") !== -1) {
 			return [ARRAY, asString];
 		}
 
-		if (asString.indexOf("Error") !== -1) {
-			return [ERROR, asString];
+		if (value instanceof Error) {
+			return [ERROR, ERROR_NAMES.indexOf(value.name) === -1 ? "Error" : value.name];
 		}
 
 		return [OBJECT, asString];
-	}
-
-	function shouldSkip(type) {
-		return type[0] === PRIMITIVE && (type[1] === "function" || type[1] === "symbol");
 	}
 
 	function serializer($, _) {
@@ -155,6 +175,11 @@
 		}
 
 		function pair(value) {
+			// the cache Map treats -0 and 0 as one key
+			if (value === 0 && 1 / value < 0) {
+				return _.push(["-0"]) - 1;
+			}
+
 			if ($.has(value)) {
 				return $.get(value);
 			}
@@ -186,12 +211,20 @@
 				}
 
 				case ARRAY: {
+					if (typeName === "DataView") {
+						var view = {byteOffset: value.byteOffset, byteLength: value.byteLength};
+						var viewIndex = as([typeName, view], value);
+						view.buffer = pair(value.buffer);
+						return viewIndex;
+					}
+
 					var arr = [];
 					var arrayIndex = as([typeName || TYPE, arr], value);
 
 					if (typeName) {
-						for (i = 0, l = value.length; i < l; ++i) {
-							arr.push(value[i]);
+						var spread = typeName === "ArrayBuffer" ? new Uint8Array(value) : value;
+						for (i = 0, l = spread.length; i < l; ++i) {
+							arr.push(spread[i]);
 						}
 
 					} else {
@@ -220,27 +253,23 @@
 					keys = Object.keys(value);
 					for (i = 0, l = keys.length; i < l; ++i) {
 						var objectKey = keys[i];
-						if (!shouldSkip(typeOf(value[objectKey]))) {
-							objectEntries.push([pair(objectKey), pair(value[objectKey])]);
-						}
+						objectEntries.push([pair(objectKey), pair(value[objectKey])]);
 					}
 					return index;
 				}
 
 				case DATE:
-					return as([TYPE, value.toISOString()], value);
+					return as([TYPE, isNaN(value.getTime()) ? EMPTY : value.toISOString()], value);
 
 				case REGEXP: {
-					return as([TYPE, {source: value.source, flags: (value.global ? "g" : "") + (value.ignoreCase ? "i" : "") + (value.multiline ? "m" : "")}], value);
+					return as([TYPE, {source: value.source, flags: value.flags}], value);
 				}
 
 				case MAP: {
 					var mapEntries = [];
 					var mapIndex = as([TYPE, mapEntries], value);
 					value.forEach(function (value, key) {
-						if (!(shouldSkip(typeOf(key)) || shouldSkip(typeOf(value)))) {
-							mapEntries.push([pair(key), pair(value)]);
-						}
+						mapEntries.push([pair(key), pair(value)]);
 					})
 
 					return mapIndex;
@@ -250,9 +279,7 @@
 					var setEntries = [];
 					var setIndex = as([TYPE, setEntries], value);
 					value.forEach(function (value) {
-						if (!shouldSkip(typeOf(value))) {
-							setEntries.push(pair(value));
-						}
+						setEntries.push(pair(value));
 					})
 
 					return setIndex;
