@@ -71,6 +71,27 @@ describe('allSettled', function () {
 		});
 	});
 
+	it("settles a hole in a sparse array as a fulfilled undefined", function () {
+		// eslint-disable-next-line no-sparse-arrays
+		var promises = [1, , 3];
+		return Promise.allSettled(promises).then(function (results) {
+			proclaim.deepStrictEqual(results, [
+				{
+					status: 'fulfilled',
+					value: 1
+				},
+				{
+					status: 'fulfilled',
+					value: undefined
+				},
+				{
+					status: 'fulfilled',
+					value: 3
+				}
+			]);
+		});
+	});
+
 	it("rejects with a TypeError for input that is not iterable", function () {
 		return Promise.allSettled(0).then(
 			function () {
