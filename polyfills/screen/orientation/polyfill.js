@@ -1,30 +1,60 @@
 (function() {
 
-	var propName, nativeGetter, last;
+	var propName, nativeGetter, last, orientation, target, onchange = null;
 	var err = ' not supported in the screen.orientation polyfill';
-	var listeners = [];
-	var orientation = {
-		onchange: null,
-		addEventListener: function (type, listener) {
-			if (type === 'change' && listener && indexOf(listener) === -1) listeners.push(listener);
-		},
-		removeEventListener: function (type, listener) {
-			var index = indexOf(listener);
-			if (type === 'change' && index !== -1) listeners.splice(index, 1);
-		},
-		lock: function(){
-			throw new Error('lock method'+err);
-		},
-		unlock: function(){
-			throw new Error('unlock method'+err);
-		}
-	};
 
-	function indexOf(listener) {
-		for (var i = 0; i < listeners.length; i++) {
-			if (listeners[i] === listener) return i;
+	function onchangeListener(event) {
+		onchange.call(orientation, event);
+	}
+
+	function createOrientation() {
+		try {
+			// Where EventTarget is constructible the object is one, so event.target is screen.orientation
+			orientation = target = new EventTarget();
+		} catch (e) {
+			target = document.createElement('div');
+			orientation = {
+				addEventListener: function () {
+					return target.addEventListener.apply(target, arguments);
+				},
+				removeEventListener: function () {
+					return target.removeEventListener.apply(target, arguments);
+				},
+				dispatchEvent: function () {
+					return target.dispatchEvent.apply(target, arguments);
+				}
+			};
 		}
-		return -1;
+
+		orientation.lock = function () {
+			throw new Error('lock method'+err);
+		};
+		orientation.unlock = function () {
+			throw new Error('unlock method'+err);
+		};
+		Object.defineProperty(orientation, 'onchange', {
+			enumerable: true,
+			get: function () {
+				return onchange;
+			},
+			set: function (value) {
+				if (onchange) target.removeEventListener('change', onchangeListener);
+				onchange = typeof value === 'function' ? value : null;
+				if (onchange) target.addEventListener('change', onchangeListener);
+			}
+		});
+		Object.defineProperty(orientation, 'type', {
+			enumerable: true,
+			get: function () {
+				return current().type;
+			}
+		});
+		Object.defineProperty(orientation, 'angle', {
+			enumerable: true,
+			get: function () {
+				return current().angle;
+			}
+		});
 	}
 
 	function current() {
@@ -65,20 +95,9 @@
 		return { type: (screen.width > screen.height) ? 'landscape-primary' : 'portrait-primary', angle: 0 };
 	}
 
-	function invoke(listener, event) {
-		try {
-			if (typeof listener === 'function') listener.call(orientation, event);
-			else if (listener && typeof listener.handleEvent === 'function') listener.handleEvent(event);
-		} catch (e) {
-			setTimeout(function () {
-				throw e;
-			}, 0);
-		}
-	}
-
 	function update() {
 		var next = current();
-		var event, handlers, i;
+		var event;
 
 		if (next.type === last.type && next.angle === last.angle) return;
 		last = next;
@@ -90,9 +109,7 @@
 			event.initEvent('change', false, false);
 		}
 
-		handlers = listeners.slice();
-		invoke(orientation.onchange, event);
-		for (i = 0; i < handlers.length; i++) invoke(handlers[i], event);
+		target.dispatchEvent(event);
 	}
 
 	// Find a native impl if it exists
@@ -110,19 +127,7 @@
 	if (typeof window.screen.orientation !== 'object') {
 
 		last = current();
-
-		Object.defineProperty(orientation, 'type', {
-			enumerable: true,
-			get: function () {
-				return current().type;
-			}
-		});
-		Object.defineProperty(orientation, 'angle', {
-			enumerable: true,
-			get: function () {
-				return current().angle;
-			}
-		});
+		createOrientation();
 
 		try {
 			Object.defineProperty(window.screen, 'orientation', {
