@@ -6,7 +6,7 @@
 	var dateRegExp = /^\d{4,}-[0-1][0-9]-[0-3][0-9]$/;
 	var monthRegExp = /^\d{4,}-[0-1][0-9]$/;
 	var weekRegExp = /^\d{4,}-W[0-5][0-9]$/;
-	var timeRegExp = /^[0-2][0-9]:[0-5][0-9]$/;
+	var timeRegExp = /^[0-2][0-9]:[0-5][0-9](?::[0-5][0-9](?:\.[0-9]{1,3})?)?$/;
 
 	var valueAsDateDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'valueAsDate');
 	if (valueAsDateDescriptor && !valueAsDateDescriptor.configurable) {
@@ -198,6 +198,9 @@
 
 						var tHour = Number(time[0]);
 						var tMinute = Number(time[1]);
+						var seconds = (time[2] || "0").split(".");
+						var tSecond = Number(seconds[0]);
+						var tMillisecond = Number(((seconds[1] || "") + "00").slice(0, 3));
 
 						if (tHour > 23) {
 							return null;
@@ -206,7 +209,7 @@
 							return null;
 						}
 
-						return new Date(Date.UTC(1970, 0, 1, tHour, tMinute));
+						return new Date(Date.UTC(1970, 0, 1, tHour, tMinute, tSecond, tMillisecond));
 
 					default:
 						return null;
@@ -220,6 +223,11 @@
 			if (type === "text") {
 				// "type" property will be text even when setting the attribute to date|month|week|time in browsers without support
 				type = this.getAttribute("type");
+			}
+
+			if ((type === "date" || type === "month" || type === "week" || type === "time") &&
+				d !== null && d !== undefined && Object.prototype.toString.call(d) !== "[object Date]") {
+				throw new TypeError("Failed to set the 'valueAsDate' property on 'HTMLInputElement': The provided value is not a Date.");
 			}
 
 			switch (type) {
@@ -299,8 +307,17 @@
 					try {
 						var tHour = ("0" + d.getUTCHours()).slice(-2);
 						var tMinute = ("0" + d.getUTCMinutes()).slice(-2);
+						var tSecond = d.getUTCSeconds();
+						var tMillisecond = d.getUTCMilliseconds();
+						var tValue = tHour + ":" + tMinute;
+						if (tSecond || tMillisecond) {
+							tValue += ":" + ("0" + tSecond).slice(-2);
+						}
+						if (tMillisecond) {
+							tValue += "." + ("00" + tMillisecond).slice(-3);
+						}
 
-						this.value = tHour + ":" + tMinute;
+						this.value = tValue;
 						return;
 					} catch(_) {
 						this.value = "";
@@ -310,7 +327,7 @@
 				default:
 					// Do not break on future additions.
 					if (valueAsDateDescriptor && valueAsDateDescriptor.set) {
-						valueAsDateDescriptor.set.apply(this, d);
+						valueAsDateDescriptor.set.call(this, d);
 					}
 			}
 		}
