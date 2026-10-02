@@ -113,7 +113,13 @@ describe('AggregateError', function () {
 		proclaim.isFalse(Object.prototype.hasOwnProperty.call(new AggregateError([]), 'message'));
 	});
 
-	it("is an Error to Object.prototype.toString", function () {
+	// Without a __proto__ setter, Object.setPrototypeOf returns a copy, which loses the error's internal slot.
+	var setPrototypeOfKeepsObject = (function () {
+		var object = {};
+		return Object.setPrototypeOf(object, {}) === object;
+	}());
+
+	(setPrototypeOfKeepsObject ? it : it.skip)("is an Error to Object.prototype.toString", function () {
 		proclaim.equal(Object.prototype.toString.call(new AggregateError([], 'm')), '[object Error]');
 	});
 
