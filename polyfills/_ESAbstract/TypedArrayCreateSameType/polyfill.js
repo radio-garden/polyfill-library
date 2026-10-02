@@ -10,6 +10,15 @@ function TypedArrayCreateSameType(exemplar, argumentList) { // eslint-disable-li
 			constructor = candidate;
 		}
 	}
+	// a typed array from another realm inherits from none of this realm's prototypes; its tag is its [[TypedArrayName]]
+	if (!constructor) {
+		var tag = Object.prototype.toString.call(exemplar).slice(8, -1);
+		for (var j = 0; j < names.length && !constructor; j++) {
+			if (names[j] === tag) {
+				constructor = self[names[j]];
+			}
+		}
+	}
 
 	// 2. Let result be ? TypedArrayCreate(constructor, argumentList).
 	var result = TypedArrayCreate(constructor, argumentList);
