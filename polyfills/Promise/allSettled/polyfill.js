@@ -19,7 +19,7 @@
 			}
 		}
 
-		var promises = arr.map(function (promise) {
+		var settle = function (promise) {
 			var onFulfill = function (value) {
 				return { status: 'fulfilled', value: value };
 			};
@@ -32,7 +32,12 @@
 			} catch (e) {
 				return C.reject(e);
 			}
-		});
+		};
+
+		var promises = [];
+		for (var i = 0; i < arr.length; i++) {
+			promises.push(settle(arr[i]));
+		}
 
 		return C.all(promises);
 	});
