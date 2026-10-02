@@ -96,6 +96,31 @@ describe('AggregateError', function () {
 		}, /is not iterable/);
 	});
 
+	it("has no enumerable own properties", function () {
+		var aggregateError = new AggregateError([new Error('x')], 'm');
+		proclaim.deepStrictEqual(Object.keys(aggregateError), []);
+		proclaim.isNotEnumerable(aggregateError, 'message');
+		proclaim.isNotEnumerable(aggregateError, 'errors');
+	});
+
+	it("inherits name from AggregateError.prototype", function () {
+		proclaim.isFalse(Object.prototype.hasOwnProperty.call(new AggregateError([]), 'name'));
+		proclaim.equal(AggregateError.prototype.name, 'AggregateError');
+		proclaim.equal(AggregateError.prototype.message, '');
+	});
+
+	it("has no own message when message is undefined", function () {
+		proclaim.isFalse(Object.prototype.hasOwnProperty.call(new AggregateError([]), 'message'));
+	});
+
+	it("is an Error to Object.prototype.toString", function () {
+		proclaim.equal(Object.prototype.toString.call(new AggregateError([], 'm')), '[object Error]');
+	});
+
+	it("converts to a string like an Error", function () {
+		proclaim.equal(String(new AggregateError([], 'm')), 'AggregateError: m');
+	});
+
 	if (hasErrorCause) {
 		it('creates an AggregateError with a cause', function () {
 			var error = new AggregateError([], 'm', { cause: 'c' });
