@@ -1,6 +1,7 @@
 /* global CreateMethodProperty, RequireObjectCoercible, ToIntegerOrInfinity, ToString */
 // 22.1.3.1. String.prototype.at ( index )
 CreateMethodProperty(String.prototype, 'at', function at(index) {
+	'use strict';
 	// 1. Let O be ? RequireObjectCoercible(this value).
 	var O = RequireObjectCoercible(this);
 	// 2. Let S be ? ToString(O).

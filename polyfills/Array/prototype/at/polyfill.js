@@ -1,6 +1,7 @@
 /* global CreateMethodProperty, Get, LengthOfArrayLike, ToIntegerOrInfinity, ToObject, ToString */
 // 23.1.3.1. Array.prototype.at ( index )
 CreateMethodProperty(Array.prototype, 'at', function at(index) {
+	'use strict';
 	// 1. Let O be ? ToObject(this value).
 	var O = ToObject(this);
 	// 2. Let len be ? LengthOfArrayLike(O).
