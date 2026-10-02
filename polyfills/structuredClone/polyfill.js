@@ -1,4 +1,4 @@
-/* global Map, Set, BigInt */
+/* global Map, Set, BigInt, DataView, Uint8Array */
 "use strict";
 
 (function (env) {
@@ -47,7 +47,18 @@
 					var keys = Object.keys(value);
 					for (i = 0, l = keys.length; i < l; ++i) {
 						var entry = value[keys[i]];
-						object[unpair(entry[0])] = unpair(entry[1]);
+						var key = unpair(entry[0]);
+						var keyValue = unpair(entry[1]);
+						if (key === "__proto__") {
+							Object.defineProperty(object, key, {
+								value: keyValue,
+								configurable: true,
+								enumerable: true,
+								writable: true
+							});
+						} else {
+							object[key] = keyValue;
+						}
 					}
 
 					return object;
@@ -79,7 +90,7 @@
 				}
 
 				case ERROR: {
-					return as(new env[value.name](value.message), index);
+					return as(typeof env[value.name] === "function" ? new env[value.name](value.message) : new Error(value.message), index);
 				}
 
 				case BIGINT:
@@ -87,6 +98,12 @@
 
 				case "BigInt":
 					return as(Object(BigInt(value)), index);
+
+				case "ArrayBuffer":
+					return as(new Uint8Array(value).buffer, index);
+
+				case "DataView":
+					return as(new DataView(new Uint8Array(value).buffer), index);
 			}
 
 			return as(new env[type](value), index);
@@ -130,21 +147,20 @@
 
 			case "RegExp":
 				return [REGEXP, EMPTY];
+
+			case "DataView":
+				return [ARRAY, asString];
 		}
 
 		if (asString.indexOf("Array") !== -1) {
 			return [ARRAY, asString];
 		}
 
-		if (asString.indexOf("Error") !== -1) {
-			return [ERROR, asString];
+		if (value instanceof Error) {
+			return [ERROR, value.name || "Error"];
 		}
 
 		return [OBJECT, asString];
-	}
-
-	function shouldSkip(type) {
-		return type[0] === PRIMITIVE && (type[1] === "function" || type[1] === "symbol");
 	}
 
 	function serializer($, _) {
@@ -190,8 +206,14 @@
 					var arrayIndex = as([typeName || TYPE, arr], value);
 
 					if (typeName) {
-						for (i = 0, l = value.length; i < l; ++i) {
-							arr.push(value[i]);
+						var spread = value;
+						if (typeName === "DataView") {
+							spread = new Uint8Array(value.buffer);
+						} else if (typeName === "ArrayBuffer") {
+							spread = new Uint8Array(value);
+						}
+						for (i = 0, l = spread.length; i < l; ++i) {
+							arr.push(spread[i]);
 						}
 
 					} else {
@@ -220,27 +242,23 @@
 					keys = Object.keys(value);
 					for (i = 0, l = keys.length; i < l; ++i) {
 						var objectKey = keys[i];
-						if (!shouldSkip(typeOf(value[objectKey]))) {
-							objectEntries.push([pair(objectKey), pair(value[objectKey])]);
-						}
+						objectEntries.push([pair(objectKey), pair(value[objectKey])]);
 					}
 					return index;
 				}
 
 				case DATE:
-					return as([TYPE, value.toISOString()], value);
+					return as([TYPE, isNaN(value.getTime()) ? EMPTY : value.toISOString()], value);
 
 				case REGEXP: {
-					return as([TYPE, {source: value.source, flags: (value.global ? "g" : "") + (value.ignoreCase ? "i" : "") + (value.multiline ? "m" : "")}], value);
+					return as([TYPE, {source: value.source, flags: value.flags}], value);
 				}
 
 				case MAP: {
 					var mapEntries = [];
 					var mapIndex = as([TYPE, mapEntries], value);
 					value.forEach(function (value, key) {
-						if (!(shouldSkip(typeOf(key)) || shouldSkip(typeOf(value)))) {
-							mapEntries.push([pair(key), pair(value)]);
-						}
+						mapEntries.push([pair(key), pair(value)]);
 					})
 
 					return mapIndex;
@@ -250,9 +268,7 @@
 					var setEntries = [];
 					var setIndex = as([TYPE, setEntries], value);
 					value.forEach(function (value) {
-						if (!shouldSkip(typeOf(value))) {
-							setEntries.push(pair(value));
-						}
+						setEntries.push(pair(value));
 					})
 
 					return setIndex;
