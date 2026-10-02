@@ -186,6 +186,15 @@ describe('structuredClone', function () {
 	});
 
 
+	it('keeps 0 and -0 apart', function () {
+		var clone = structuredClone([0, -0]);
+		proclaim.equal(1 / clone[0], Infinity);
+		proclaim.equal(1 / clone[1], -Infinity);
+		clone = structuredClone([-0, 0]);
+		proclaim.equal(1 / clone[0], -Infinity);
+		proclaim.equal(1 / clone[1], Infinity);
+	});
+
 	it('preserves references', function () {
 		proclaim.equal(deserialized.arr.length, 3);
 		proclaim.equal(deserialized.arr[0], deserialized);
