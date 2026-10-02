@@ -38,26 +38,23 @@ var GetSubstitution = (function() { // eslint-disable-line no-unused-vars
 					result += matched;
 					i += 1;
 				} else if (next === '`') {
-					result += position === 0 ? '' : str.slice(0, position - 1);
+					result += str.slice(0, position);
 					i += 1;
 				} else if (next === "'") {
 					result += tailPos >= stringLength ? '' : str.slice(tailPos);
 					i += 1;
 				} else {
 					var nextNext = nextIsLast ? null : replacement.charAt(i + 2);
-					if (isDigit(next) && next !== '0' && (nextIsLast || !isDigit(nextNext))) {
-						// $1 through $9, and not followed by a digit
-						var n = parseInt(next, 10);
-						// if (n > m, impl-defined)
-						result += n <= m && Type(captures[n - 1]) === 'Undefined' ? '' : captures[n - 1];
-						i += 1;
-					} else if (isDigit(next) && (nextIsLast || isDigit(nextNext))) {
-						// $00 through $99
-						var nn = next + nextNext;
-						var nnI = parseInt(nn, 10) - 1;
-						// if nn === '00' or nn > m, impl-defined
-						result += nn <= m && Type(captures[nnI]) === 'Undefined' ? '' : captures[nnI];
-						i += 2;
+					if (isDigit(next)) {
+						// $nn names a capture when it is in range, otherwise $n followed by a literal digit
+						var digitCount = !nextIsLast && isDigit(nextNext) && parseInt(next + nextNext, 10) <= m ? 2 : 1;
+						var index = parseInt(replacement.slice(i + 1, i + 1 + digitCount), 10);
+						if (index >= 1 && index <= m) {
+							result += Type(captures[index - 1]) === 'undefined' ? '' : captures[index - 1];
+						} else {
+							result += replacement.slice(i, i + 1 + digitCount);
+						}
+						i += digitCount;
 					} else {
 						result += '$';
 					}
