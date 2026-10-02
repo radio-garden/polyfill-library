@@ -103,16 +103,20 @@
 		return deadline;
 	}
 
-	function runCallback(callbackObject) {
-		var deadline = getDeadline(callbackObject);
+	// The browser reports an exception thrown by an event listener as uncaught and returns from dispatchEvent.
+	var callbackTarget = document.createElement('div');
+	var runningCallbackObject;
+	callbackTarget.addEventListener('idlecallback', function () {
+		var callbackObject = runningCallbackObject;
 		var callback = callbackObject.callback;
-		try {
-			callback(deadline);
-		} catch (error) {
-			setTimeout(function () {
-				throw error;
-			}, 0);
-		}
+		callback(getDeadline(callbackObject));
+	});
+
+	function runCallback(callbackObject) {
+		runningCallbackObject = callbackObject;
+		var event = document.createEvent('Event');
+		event.initEvent('idlecallback', false, false);
+		callbackTarget.dispatchEvent(event);
 	}
 
 	function scheduleIdleWork() {
