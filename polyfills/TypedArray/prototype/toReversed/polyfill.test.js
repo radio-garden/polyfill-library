@@ -29,4 +29,34 @@ describe('toReversed', function () {
 		proclaim.deepStrictEqual(typedArray.toReversed(), new Int8Array([6, 5, 4, 3]));
 		proclaim.equal(typedArray[0], 3);
 	});
+
+	var Uint8Subclass = (function () {
+		try {
+			return new Function('return class extends Uint8Array {}')();
+		} catch (ignore) {
+			return undefined;
+		}
+	}());
+
+	if (Uint8Subclass) {
+		it('returns a plain Uint8Array for a Uint8Array subclass', function () {
+			var result = new Uint8Subclass([3, 1, 2]).toReversed();
+			proclaim.strictEqual(Object.getPrototypeOf(result), self.Uint8Array.prototype);
+			proclaim.deepStrictEqual(Array.prototype.slice.call(result), [2, 1, 3]);
+		});
+	}
+
+	if ('BigInt' in self && 'BigInt64Array' in self && typeof self.BigInt64Array.prototype.toReversed === 'function') {
+		it('returns a BigInt64Array for a BigInt64Array', function () {
+			var result = new self.BigInt64Array([self.BigInt(3), self.BigInt(1), self.BigInt(2)]).toReversed();
+			proclaim.strictEqual(Object.getPrototypeOf(result), self.BigInt64Array.prototype);
+			proclaim.deepStrictEqual(Array.prototype.slice.call(result), [self.BigInt(2), self.BigInt(1), self.BigInt(3)]);
+		});
+
+		it('returns a BigUint64Array for a BigUint64Array', function () {
+			var result = new self.BigUint64Array([self.BigInt(3), self.BigInt(1), self.BigInt(2)]).toReversed();
+			proclaim.strictEqual(Object.getPrototypeOf(result), self.BigUint64Array.prototype);
+			proclaim.deepStrictEqual(Array.prototype.slice.call(result), [self.BigInt(2), self.BigInt(1), self.BigInt(3)]);
+		});
+	}
 });

@@ -56,4 +56,20 @@ describe('with', function () {
 			typedArray.with(4);
 		});
 	});
+
+	var Uint8Subclass = (function () {
+		try {
+			return new Function('return class extends Uint8Array {}')();
+		} catch (ignore) {
+			return undefined;
+		}
+	}());
+
+	if (Uint8Subclass) {
+		it('returns a plain Uint8Array for a Uint8Array subclass', function () {
+			var result = new Uint8Subclass([3, 1, 2]).with(0, 4);
+			proclaim.strictEqual(Object.getPrototypeOf(result), self.Uint8Array.prototype);
+			proclaim.deepStrictEqual(Array.prototype.slice.call(result), [4, 1, 2]);
+		});
+	}
 });
