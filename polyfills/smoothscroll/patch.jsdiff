@@ -1,7 +1,7 @@
 ===================================================================
 --- a/polyfills/smoothscroll/polyfill-original.js
 +++ b/polyfills/smoothscroll/polyfill-original.js
-@@ -1,7 +1,7 @@
+@@ -1,8 +1,8 @@
  (function (global, factory) {
 -    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 -    typeof define === 'function' && define.amd ? define(['exports'], factory) :
@@ -12,3 +12,147 @@
  }(this, (function (exports) { 'use strict';
  
      var ease = function (k) {
+         return 0.5 * (1 - Math.cos(Math.PI * k));
+@@ -59,8 +59,16 @@
+     var isObject = function (value) {
+         var type = typeof value;
+         return value !== null && (type === "object" || type === "function");
+     };
++    var runningScrolls = [];
++    var stopRunningScroll = function (target) {
++        for (var i = 0; i < runningScrolls.length; i++) {
++            if (runningScrolls[i].target === target) {
++                return runningScrolls[i].cancel();
++            }
++        }
++    };
+ 
+     /*! *****************************************************************************
+     Copyright (c) Microsoft Corporation.
+ 
+@@ -106,8 +114,9 @@
+ 
+     var elementScroll = function (element, options) {
+         var _a, _b;
+         var originalBoundFunc = original.elementScroll.bind(element);
++        stopRunningScroll(element);
+         if (options.left === undefined && options.top === undefined) {
+             return;
+         }
+         var startX = element.scrollLeft;
+@@ -119,8 +128,12 @@
+         }
+         var removeEventListener = function () {
+             window.removeEventListener("wheel", cancelScroll);
+             window.removeEventListener("touchmove", cancelScroll);
++            var index = runningScrolls.indexOf(running);
++            if (index !== -1) {
++                runningScrolls.splice(index, 1);
++            }
+         };
+         var context = {
+             timeStamp: now(),
+             duration: options.duration,
+@@ -136,8 +149,10 @@
+         var cancelScroll = function () {
+             cancelAnimationFrame(context.rafId);
+             removeEventListener();
+         };
++        var running = { target: element, cancel: cancelScroll };
++        runningScrolls.push(running);
+         window.addEventListener("wheel", cancelScroll, {
+             passive: true,
+             once: true,
+         });
+@@ -160,8 +175,9 @@
+                         throw new TypeError("Failed to execute 'scroll' on 'Element': parameter 1 ('options') is not an object.");
+                     }
+                     return elementScroll(this, __assign(__assign({}, scrollOptions), animationOptions));
+                 }
++                stopRunningScroll(this);
+                 return originalFunc.apply(this, arguments);
+             });
+         });
+     };
+@@ -696,20 +712,20 @@
+                     var scrollToOptions = arguments[0];
+                     if (!isObject(scrollToOptions)) {
+                         throw new TypeError("Failed to execute 'scrollTo' on 'Element': parameter 1 ('options') is not an object.");
+                     }
+-                    var left = Number(scrollToOptions.left);
+-                    var top_1 = Number(scrollToOptions.top);
+-                    return elementScroll(this, __assign(__assign(__assign({}, scrollToOptions), { left: left, top: top_1 }), animationOptions));
++                    return elementScroll(this, __assign(__assign({}, scrollToOptions), animationOptions));
+                 }
++                stopRunningScroll(this);
+                 return originalFunc.apply(this, arguments);
+             });
+         });
+     };
+ 
+     var windowScroll = function (options) {
+         var _a, _b;
+         var originalBoundFunc = original.windowScroll.bind(window);
++        stopRunningScroll(window);
+         if (options.left === undefined && options.top === undefined) {
+             return;
+         }
+         var startX = window.scrollX || window.pageXOffset;
+@@ -721,8 +737,12 @@
+         }
+         var removeEventListener = function () {
+             window.removeEventListener("wheel", cancelScroll);
+             window.removeEventListener("touchmove", cancelScroll);
++            var index = runningScrolls.indexOf(running);
++            if (index !== -1) {
++                runningScrolls.splice(index, 1);
++            }
+         };
+         var context = {
+             timeStamp: now(),
+             duration: options.duration,
+@@ -738,8 +758,10 @@
+         var cancelScroll = function () {
+             cancelAnimationFrame(context.rafId);
+             removeEventListener();
+         };
++        var running = { target: window, cancel: cancelScroll };
++        runningScrolls.push(running);
+         window.addEventListener("wheel", cancelScroll, {
+             passive: true,
+             once: true,
+         });
+@@ -761,16 +783,18 @@
+                     throw new TypeError("Failed to execute 'scroll' on 'Window': parameter 1 ('options') is not an object.");
+                 }
+                 return windowScroll(__assign(__assign({}, scrollOptions), animationOptions));
+             }
++            stopRunningScroll(window);
+             return originalFunc.apply(this, arguments);
+         };
+     };
+ 
+     var windowScrollBy = function (options) {
+         var left = nonFinite(options.left || 0) + (window.scrollX || window.pageXOffset);
+         var top = nonFinite(options.top || 0) + (window.scrollY || window.pageYOffset);
+         if (options.behavior !== "smooth") {
++            stopRunningScroll(window);
+             return original.windowScroll.call(window, left, top);
+         }
+         return windowScroll(__assign(__assign({}, options), { left: left, top: top }));
+     };
+@@ -802,12 +826,11 @@
+                 var scrollToOptions = arguments[0];
+                 if (!isObject(scrollToOptions)) {
+                     throw new TypeError("Failed to execute 'scrollTo' on 'Window': parameter 1 ('options') is not an object.");
+                 }
+-                var left = Number(scrollToOptions.left);
+-                var top_1 = Number(scrollToOptions.top);
+-                return windowScroll(__assign(__assign(__assign({}, scrollToOptions), { left: left, top: top_1 }), animationOptions));
++                return windowScroll(__assign(__assign({}, scrollToOptions), animationOptions));
+             }
++            stopRunningScroll(window);
+             return originalFunc.apply(this, arguments);
+         };
+     };
+ 
