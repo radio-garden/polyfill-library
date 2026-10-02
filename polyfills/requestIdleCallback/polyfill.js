@@ -55,7 +55,7 @@
 
 	var port; // The object to `postMessage` on.
 	var messageKey;
-	var messageChannelSupport = typeof MessageChannel === 'object';
+	var messageChannelSupport = typeof MessageChannel !== 'undefined';
 
 	// We use the postMessage trick to defer idle work until after the repaint.
 	if (messageChannelSupport) {
