@@ -103,7 +103,7 @@
 					return as(new Uint8Array(value).buffer, index);
 
 				case "DataView":
-					return as(new DataView(new Uint8Array(value).buffer), index);
+					return as(new DataView(unpair(value.buffer), value.byteOffset, value.byteLength), index);
 
 				case "-0":
 					return -0;
@@ -211,16 +211,18 @@
 				}
 
 				case ARRAY: {
+					if (typeName === "DataView") {
+						var view = {byteOffset: value.byteOffset, byteLength: value.byteLength};
+						var viewIndex = as([typeName, view], value);
+						view.buffer = pair(value.buffer);
+						return viewIndex;
+					}
+
 					var arr = [];
 					var arrayIndex = as([typeName || TYPE, arr], value);
 
 					if (typeName) {
-						var spread = value;
-						if (typeName === "DataView") {
-							spread = new Uint8Array(value.buffer);
-						} else if (typeName === "ArrayBuffer") {
-							spread = new Uint8Array(value);
-						}
+						var spread = typeName === "ArrayBuffer" ? new Uint8Array(value) : value;
 						for (i = 0, l = spread.length; i < l; ++i) {
 							arr.push(spread[i]);
 						}
