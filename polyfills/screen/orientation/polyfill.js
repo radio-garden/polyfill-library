@@ -36,11 +36,27 @@
 			return { type: val, angle: (val.indexOf('secondary') !== -1) ? 180 : 0 };
 		}
 
-		// window.orientation is the rotation from the device's natural orientation, taken to be portrait
 		if (typeof window.orientation === 'number') {
-			angle = (window.orientation % 360 + 360) % 360;
+			var platform = navigator.platform;
+			var iPad = platform === 'iPad' || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+			var landscapeNatural;
+
+			angle = window.orientation;
+			if (iPad) {
+				// WebKit takes landscape as the iPad's natural orientation; window.orientation counts from portrait
+				landscapeNatural = true;
+				angle = 90 - angle;
+			} else if (/^(iPhone|iPod)/.test(platform)) {
+				// iOS keeps screen.width and screen.height in portrait however the device is held
+				landscapeNatural = false;
+			} else {
+				landscapeNatural = screen.width !== screen.height && (angle % 180 === 0) === (screen.width > screen.height);
+			}
+			angle = (angle % 360 + 360) % 360;
 			return {
-				type: ['portrait-primary', 'landscape-primary', 'portrait-secondary', 'landscape-secondary'][angle / 90],
+				type: (landscapeNatural ?
+					['landscape-primary', 'portrait-primary', 'landscape-secondary', 'portrait-secondary'] :
+					['portrait-primary', 'landscape-primary', 'portrait-secondary', 'landscape-secondary'])[angle / 90],
 				angle: angle
 			};
 		}
@@ -122,6 +138,8 @@
 			} catch (e2) {}
 		}
 
-		window.addEventListener('onorientationchange' in window ? 'orientationchange' : 'resize', update);
+		// The screen size can settle after orientationchange, so resize rechecks it
+		if ('onorientationchange' in window) window.addEventListener('orientationchange', update);
+		window.addEventListener('resize', update);
 	}
 }());
