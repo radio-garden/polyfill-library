@@ -1,3 +1,142 @@
+// Where fetch is native but its Request has no signal, keep native fetch, Request, Response and Headers
+// and add only abort support. The XHR-based github/fetch below is for browsers without a native fetch.
+if (typeof self.fetch === 'function' && typeof self.Request === 'function') {
+	(function (global) {
+		var nativeFetch = global.fetch;
+		var NativeRequest = global.Request;
+		var RequestPrototype = NativeRequest.prototype;
+		var nativeClone = RequestPrototype.clone;
+		var signals = new WeakMap();
+
+		try {
+			if ('signal' in new NativeRequest('')) {
+				return;
+			}
+		} catch (e) {}
+
+		function signalFrom(input, init) {
+			if (init && init.signal !== undefined) {
+				return init.signal;
+			}
+			return input instanceof NativeRequest ? signals.get(input) : undefined;
+		}
+
+		function abortReason(signal) {
+			if (signal.reason !== undefined) {
+				return signal.reason;
+			}
+			try {
+				return new DOMException('Aborted', 'AbortError');
+			} catch (e) {
+				var error = new Error('Aborted');
+				error.name = 'AbortError';
+				return error;
+			}
+		}
+
+		// Names are set explicitly so they survive minification.
+		function setName(fn, name) {
+			Object.defineProperty(fn, 'name', {
+				value: name,
+				writable: false,
+				enumerable: false,
+				configurable: true
+			});
+			return fn;
+		}
+
+		function cancelBody(response) {
+			var body = response && response.body;
+			if (body && !body.locked && typeof body.cancel === 'function') {
+				var cancelled = body.cancel();
+				if (cancelled && typeof cancelled.then === 'function') {
+					cancelled.then(null, function () {});
+				}
+			}
+		}
+
+		function Request(input) {
+			if (!(this instanceof Request)) {
+				throw new TypeError("Failed to construct 'Request': Please use the 'new' operator, this DOM object constructor cannot be called as a function.");
+			}
+			var init = arguments[1];
+			var request = new NativeRequest(input, init);
+			var signal = signalFrom(input, init);
+			if (signal) {
+				signals.set(request, signal);
+			}
+			return request;
+		}
+
+		setName(Request, 'Request');
+		Request.prototype = RequestPrototype;
+		Object.defineProperty(RequestPrototype, 'constructor', {
+			value: Request,
+			writable: true,
+			enumerable: false,
+			configurable: true
+		});
+
+		// A request made without a signal gets one that never aborts, as natively.
+		Object.defineProperty(RequestPrototype, 'signal', {
+			get: function () {
+				if (!signals.has(this)) {
+					signals.set(this, typeof AbortController === 'function' ? new AbortController().signal : null);
+				}
+				return signals.get(this);
+			},
+			enumerable: true,
+			configurable: true
+		});
+
+		Object.defineProperty(RequestPrototype, 'clone', {
+			value: setName(function clone() {
+				var request = nativeClone.call(this);
+				if (signals.has(this)) {
+					signals.set(request, signals.get(this));
+				}
+				return request;
+			}, 'clone'),
+			writable: true,
+			enumerable: true,
+			configurable: true
+		});
+
+		// `signal` stays in init: these native fetches ignore the dictionary member they do not know.
+		function fetch(input) {
+			var args = arguments;
+			var signal = signalFrom(input, args[1]);
+			if (!signal) {
+				return nativeFetch.apply(global, args);
+			}
+			if (signal.aborted) {
+				return Promise.reject(abortReason(signal));
+			}
+			return new Promise(function (resolve, reject) {
+				var aborted = false;
+				function onAbort() {
+					aborted = true;
+					reject(abortReason(signal));
+				}
+				signal.addEventListener('abort', onAbort);
+				nativeFetch.apply(global, args).then(function (response) {
+					signal.removeEventListener('abort', onAbort);
+					if (aborted) {
+						cancelBody(response);
+					} else {
+						resolve(response);
+					}
+				}, function (error) {
+					signal.removeEventListener('abort', onAbort);
+					reject(error);
+				});
+			});
+		}
+
+		global.fetch = setName(fetch, 'fetch');
+		global.Request = Request;
+	}(self));
+} else {
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
@@ -616,3 +755,4 @@
   Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
+}

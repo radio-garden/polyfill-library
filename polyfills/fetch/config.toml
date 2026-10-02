@@ -7,7 +7,8 @@ dependencies = [
 license = "MIT"
 spec = "https://fetch.spec.whatwg.org/"
 notes = [
-	"Makes use of FormData, FileReader and Blob if they exist. Readable streams not supported. CORS (Cross Origin Resource Sharing) requests do not work in IE 9 or lower."
+	"Where the browser has a native fetch without abort support, the native fetch, Request, Response and Headers are kept and only `signal` support is added. Aborting rejects the fetch but does not stop a request already sent; the body of a response that arrives after the abort is cancelled.",
+	"Where the browser has no native fetch: makes use of FormData, FileReader and Blob if they exist. Readable streams not supported. CORS (Cross Origin Resource Sharing) requests do not work in IE 9 or lower."
 ]
 docs = "https://developer.mozilla.org/en-US/docs/Web/API/GlobalFetch/fetch"
 
