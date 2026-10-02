@@ -28,7 +28,7 @@ var _ErrorConstructor;
 			// Reached through `super()` of a subclass: `this` carries new.target's
 			// prototype, and the object returned here becomes the instance.
 			if (this instanceof _Error && Object.getPrototypeOf(this) !== _Error.prototype) {
-				Object.setPrototypeOf(O, Object.getPrototypeOf(this));
+				O = Object.setPrototypeOf(O, Object.getPrototypeOf(this));
 			} else {
 				CreateMethodProperty(O, 'constructor', _Error);
 			}
