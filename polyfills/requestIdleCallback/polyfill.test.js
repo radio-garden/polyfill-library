@@ -303,6 +303,53 @@ describe('requestIdleCallback', function () {
 		// Keep the even loop busy but not longer than the timeout.
 		sleep(busyFor);
 	});
+
+	it('schedules through a MessageChannel, not window.postMessage, where MessageChannel exists', function (done) {
+		if (typeof MessageChannel === 'undefined') {
+			done();
+			return;
+		}
+		var messages = 0;
+		var onMessage = function () {
+			messages++;
+		};
+		window.addEventListener('message', onMessage);
+		requestIdleCallback(function () {
+			setTimeout(function () {
+				window.removeEventListener('message', onMessage);
+				try {
+					proclaim.equal(messages, 0, 'Expected no message events on the window.');
+					done();
+				} catch (error) {
+					done(error);
+				}
+			}, 0);
+		});
+	});
+
+	it('posts to its MessagePort without a targetOrigin', function (done) {
+		if (typeof MessagePort === 'undefined') {
+			done();
+			return;
+		}
+		var postMessage = MessagePort.prototype.postMessage;
+		var argumentCounts = [];
+		MessagePort.prototype.postMessage = function () {
+			argumentCounts.push(arguments.length);
+			return postMessage.apply(this, arguments);
+		};
+		requestIdleCallback(function () {
+			MessagePort.prototype.postMessage = postMessage;
+			try {
+				for (var i = 0; i < argumentCounts.length; i++) {
+					proclaim.equal(argumentCounts[i], 1, 'Expected postMessage calls with one argument, got ' + argumentCounts.join(', '));
+				}
+				done();
+			} catch (error) {
+				done(error);
+			}
+		});
+	});
 });
 
 describe('cancelIdleCallback', function () {

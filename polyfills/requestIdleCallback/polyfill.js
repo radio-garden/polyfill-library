@@ -55,7 +55,7 @@
 
 	var port; // The object to `postMessage` on.
 	var messageKey;
-	var messageChannelSupport = typeof MessageChannel === 'object';
+	var messageChannelSupport = typeof MessageChannel !== 'undefined';
 
 	// We use the postMessage trick to defer idle work until after the repaint.
 	if (messageChannelSupport) {
@@ -112,11 +112,10 @@
 	function scheduleIdleWork() {
 		if (!isIdleScheduled) {
 			isIdleScheduled = true;
-			try {
-				// Safari 9 throws "TypeError: Value is not a sequence"
-				port.postMessage(messageKey, '*');
-			} catch (error) {
+			if (messageChannelSupport) {
 				port.postMessage(messageKey);
+			} else {
+				port.postMessage(messageKey, '*');
 			}
 		}
 	}
