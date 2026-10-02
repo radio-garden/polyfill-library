@@ -51,4 +51,37 @@ describe('requestAnimationFrame', function () {
 			});
 		});
 	});
+
+	it('reports a throwing callback before the next callback of the frame runs', function (done) {
+		var error = new Error('thrown from a frame callback');
+		var events = [];
+		var reported = [];
+		var onerror = window.onerror;
+		window.onerror = function (message, source, line, column, thrown) {
+			events.push('error:' + (thrown && thrown.message));
+			reported.push(thrown);
+			return true;
+		};
+
+		requestAnimationFrame(function () {
+			events.push('A');
+			setTimeout(function () {
+				window.onerror = onerror;
+				try {
+					proclaim.deepStrictEqual(events, ['A', 'B', 'error:' + error.message, 'C']);
+					proclaim.strictEqual(reported[0], error);
+					done();
+				} catch (assertion) {
+					done(assertion);
+				}
+			}, 50);
+		});
+		requestAnimationFrame(function () {
+			events.push('B');
+			throw error;
+		});
+		requestAnimationFrame(function () {
+			events.push('C');
+		});
+	});
 });
