@@ -104,6 +104,9 @@
 
 				case "DataView":
 					return as(new DataView(new Uint8Array(value).buffer), index);
+
+				case "-0":
+					return -0;
 			}
 
 			return as(new env[type](value), index);
@@ -172,6 +175,11 @@
 		}
 
 		function pair(value) {
+			// the cache Map treats -0 and 0 as one key
+			if (value === 0 && 1 / value < 0) {
+				return _.push(["-0"]) - 1;
+			}
+
 			if ($.has(value)) {
 				return $.get(value);
 			}
