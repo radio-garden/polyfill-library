@@ -303,6 +303,27 @@ describe('requestIdleCallback', function () {
 		// Keep the even loop busy but not longer than the timeout.
 		sleep(busyFor);
 	});
+
+	it('runs the remaining callbacks when an earlier one throws', function (done) {
+		var mochaError = self.onerror;
+		self.onerror = Function.prototype;
+		var ran = [];
+		requestIdleCallback(function () {
+			throw new Error('idle callback error');
+		});
+		requestIdleCallback(function () {
+			ran.push('second');
+		});
+		setTimeout(function () {
+			self.onerror = mochaError;
+			try {
+				proclaim.deepEqual(ran, ['second']);
+				done();
+			} catch (error) {
+				done(error);
+			}
+		}, 300);
+	});
 });
 
 describe('cancelIdleCallback', function () {
