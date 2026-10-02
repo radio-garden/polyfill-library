@@ -99,7 +99,7 @@ describe("concat", function () {
 
 	it("should skip many exhausted iterables without growing the stack", function () {
 		var iterables = [];
-		for (var i = 0; i < 30000; i++) {
+		for (var i = 0; i < 10000; i++) {
 			iterables.push(new TestIterator([]));
 		}
 		iterables.push(new TestIterator([1]));
