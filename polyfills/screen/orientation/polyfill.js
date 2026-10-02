@@ -38,9 +38,10 @@
 				return onchange;
 			},
 			set: function (value) {
-				if (onchange) target.removeEventListener('change', onchangeListener);
-				onchange = typeof value === 'function' ? value : null;
-				if (onchange) target.addEventListener('change', onchangeListener);
+				var next = typeof value === 'function' ? value : null;
+				if (next && !onchange) target.addEventListener('change', onchangeListener);
+				if (!next && onchange) target.removeEventListener('change', onchangeListener);
+				onchange = next;
 			}
 		});
 		Object.defineProperty(orientation, 'type', {
