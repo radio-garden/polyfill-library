@@ -60,6 +60,25 @@
         var type = typeof value;
         return value !== null && (type === "object" || type === "function");
     };
+    var runningScrolls = [];
+    var scrollBox = function (target) {
+        return target === window || target === (document.scrollingElement || document.documentElement) ? window : target;
+    };
+    var stopRunningScroll = function (target) {
+        var box = scrollBox(target);
+        for (var i = 0; i < runningScrolls.length; i++) {
+            if (runningScrolls[i].target === box) {
+                return runningScrolls[i].cancel();
+            }
+        }
+    };
+    var stopRunningScrollsAround = function (element) {
+        runningScrolls.slice().forEach(function (running) {
+            if (running.target === window || running.target.contains(element)) {
+                running.cancel();
+            }
+        });
+    };
 
     /*! *****************************************************************************
     Copyright (c) Microsoft Corporation.
@@ -105,21 +124,25 @@
     }
 
     var elementScroll = function (element, options) {
-        var _a, _b;
         var originalBoundFunc = original.elementScroll.bind(element);
+        stopRunningScroll(element);
         if (options.left === undefined && options.top === undefined) {
             return;
         }
         var startX = element.scrollLeft;
         var startY = element.scrollTop;
-        var targetX = nonFinite((_a = options.left) !== null && _a !== void 0 ? _a : startX);
-        var targetY = nonFinite((_b = options.top) !== null && _b !== void 0 ? _b : startY);
+        var targetX = nonFinite(options.left !== undefined ? options.left : startX);
+        var targetY = nonFinite(options.top !== undefined ? options.top : startY);
         if (options.behavior !== "smooth") {
             return originalBoundFunc(targetX, targetY);
         }
         var removeEventListener = function () {
             window.removeEventListener("wheel", cancelScroll);
             window.removeEventListener("touchmove", cancelScroll);
+            var index = runningScrolls.indexOf(running);
+            if (index !== -1) {
+                runningScrolls.splice(index, 1);
+            }
         };
         var context = {
             timeStamp: now(),
@@ -137,6 +160,8 @@
             cancelAnimationFrame(context.rafId);
             removeEventListener();
         };
+        var running = { target: scrollBox(element), cancel: cancelScroll };
+        runningScrolls.push(running);
         window.addEventListener("wheel", cancelScroll, {
             passive: true,
             once: true,
@@ -161,6 +186,7 @@
                     }
                     return elementScroll(this, __assign(__assign({}, scrollOptions), animationOptions));
                 }
+                stopRunningScroll(this);
                 return originalFunc.apply(this, arguments);
             });
         });
@@ -680,6 +706,7 @@
                 if (arguments.length === 1 && isObject(scrollIntoViewOptions)) {
                     return elementScrollIntoView(this, __assign(__assign({}, scrollIntoViewOptions), animationOptions));
                 }
+                stopRunningScrollsAround(this);
                 return originalFunc.apply(this, arguments);
             });
         });
@@ -697,31 +724,34 @@
                     if (!isObject(scrollToOptions)) {
                         throw new TypeError("Failed to execute 'scrollTo' on 'Element': parameter 1 ('options') is not an object.");
                     }
-                    var left = Number(scrollToOptions.left);
-                    var top_1 = Number(scrollToOptions.top);
-                    return elementScroll(this, __assign(__assign(__assign({}, scrollToOptions), { left: left, top: top_1 }), animationOptions));
+                    return elementScroll(this, __assign(__assign({}, scrollToOptions), animationOptions));
                 }
+                stopRunningScroll(this);
                 return originalFunc.apply(this, arguments);
             });
         });
     };
 
     var windowScroll = function (options) {
-        var _a, _b;
         var originalBoundFunc = original.windowScroll.bind(window);
+        stopRunningScroll(window);
         if (options.left === undefined && options.top === undefined) {
             return;
         }
         var startX = window.scrollX || window.pageXOffset;
         var startY = window.scrollY || window.pageYOffset;
-        var targetX = nonFinite((_a = options.left) !== null && _a !== void 0 ? _a : startX);
-        var targetY = nonFinite((_b = options.top) !== null && _b !== void 0 ? _b : startY);
+        var targetX = nonFinite(options.left !== undefined ? options.left : startX);
+        var targetY = nonFinite(options.top !== undefined ? options.top : startY);
         if (options.behavior !== "smooth") {
             return originalBoundFunc(targetX, targetY);
         }
         var removeEventListener = function () {
             window.removeEventListener("wheel", cancelScroll);
             window.removeEventListener("touchmove", cancelScroll);
+            var index = runningScrolls.indexOf(running);
+            if (index !== -1) {
+                runningScrolls.splice(index, 1);
+            }
         };
         var context = {
             timeStamp: now(),
@@ -739,6 +769,8 @@
             cancelAnimationFrame(context.rafId);
             removeEventListener();
         };
+        var running = { target: window, cancel: cancelScroll };
+        runningScrolls.push(running);
         window.addEventListener("wheel", cancelScroll, {
             passive: true,
             once: true,
@@ -762,6 +794,7 @@
                 }
                 return windowScroll(__assign(__assign({}, scrollOptions), animationOptions));
             }
+            stopRunningScroll(window);
             return originalFunc.apply(this, arguments);
         };
     };
@@ -770,6 +803,7 @@
         var left = nonFinite(options.left || 0) + (window.scrollX || window.pageXOffset);
         var top = nonFinite(options.top || 0) + (window.scrollY || window.pageYOffset);
         if (options.behavior !== "smooth") {
+            stopRunningScroll(window);
             return original.windowScroll.call(window, left, top);
         }
         return windowScroll(__assign(__assign({}, options), { left: left, top: top }));
@@ -803,10 +837,9 @@
                 if (!isObject(scrollToOptions)) {
                     throw new TypeError("Failed to execute 'scrollTo' on 'Window': parameter 1 ('options') is not an object.");
                 }
-                var left = Number(scrollToOptions.left);
-                var top_1 = Number(scrollToOptions.top);
-                return windowScroll(__assign(__assign(__assign({}, scrollToOptions), { left: left, top: top_1 }), animationOptions));
+                return windowScroll(__assign(__assign({}, scrollToOptions), animationOptions));
             }
+            stopRunningScroll(window);
             return originalFunc.apply(this, arguments);
         };
     };
