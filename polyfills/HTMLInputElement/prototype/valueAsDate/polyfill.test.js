@@ -277,6 +277,9 @@ describe("HTMLInputElement.prototype.valueAsDate", function () {
 			["00:00", new Date("1970-01-01T00:00:00.000Z")],
 			["12:00", new Date("1970-01-01T12:00:00.000Z")],
 			["23:59", new Date("1970-01-01T23:59:00.000Z")],
+			["23:59:30", new Date("1970-01-01T23:59:30.000Z")],
+			["23:59:30.5", new Date("1970-01-01T23:59:30.500Z")],
+			["23:59:30.123", new Date("1970-01-01T23:59:30.123Z")],
 
 			["23a:59", null], // Bogus suffix
 			["23:59a", null] // Bogus suffix
@@ -288,7 +291,23 @@ describe("HTMLInputElement.prototype.valueAsDate", function () {
 			[null, ""],
 			[new Date("1970-01-01T00:00:00.000Z"), "00:00"],
 			[new Date("1970-01-01T12:00:00.000Z"), "12:00"],
-			[new Date("1970-01-01T23:59:00.000Z"), "23:59"]
+			[new Date("1970-01-01T23:59:00.000Z"), "23:59"],
+			[new Date("1970-01-01T23:59:30.000Z"), "23:59:30"],
+			[new Date("1970-01-01T23:59:30.500Z"), "23:59:30.500"]
 		]);
+	});
+
+	it("throws a TypeError when set to a value that is not a Date or null", function () {
+		var inputs = [dateInput, monthInput, weekInput, timeInput];
+		var values = [0, "2019-12-10", {}, { getUTCFullYear: function () { return 2019; } }];
+		for (var i = 0; i < inputs.length; i++) {
+			for (var j = 0; j < values.length; j++) {
+				(function (input, value) {
+					proclaim.throws(function () {
+						input.valueAsDate = value;
+					}, TypeError, "type " + input.getAttribute("type") + ", value " + JSON.stringify(value));
+				}(inputs[i], values[j]));
+			}
+		}
 	});
 });
