@@ -59,4 +59,18 @@ describe('toReversed', function () {
 			proclaim.deepStrictEqual(Array.prototype.slice.call(result), [self.BigInt(2), self.BigInt(1), self.BigInt(3)]);
 		});
 	}
+
+	it('returns a typed array of this realm for a typed array from another realm', function () {
+		var iframe = document.createElement('iframe');
+		document.body.appendChild(iframe);
+		try {
+			var OtherUint8Array = iframe.contentWindow.Uint8Array;
+			proclaim.notStrictEqual(OtherUint8Array, self.Uint8Array);
+			var result = self.Uint8Array.prototype.toReversed.call(new OtherUint8Array([3, 1, 2]));
+			proclaim.strictEqual(Object.getPrototypeOf(result), self.Uint8Array.prototype);
+			proclaim.deepStrictEqual(Array.prototype.slice.call(result), [2, 1, 3]);
+		} finally {
+			document.body.removeChild(iframe);
+		}
+	});
 });
