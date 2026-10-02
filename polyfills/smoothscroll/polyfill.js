@@ -61,12 +61,23 @@
         return value !== null && (type === "object" || type === "function");
     };
     var runningScrolls = [];
+    var scrollBox = function (target) {
+        return target === window || target === (document.scrollingElement || document.documentElement) ? window : target;
+    };
     var stopRunningScroll = function (target) {
+        var box = scrollBox(target);
         for (var i = 0; i < runningScrolls.length; i++) {
-            if (runningScrolls[i].target === target) {
+            if (runningScrolls[i].target === box) {
                 return runningScrolls[i].cancel();
             }
         }
+    };
+    var stopRunningScrollsAround = function (element) {
+        runningScrolls.slice().forEach(function (running) {
+            if (running.target === window || running.target.contains(element)) {
+                running.cancel();
+            }
+        });
     };
 
     /*! *****************************************************************************
@@ -113,7 +124,6 @@
     }
 
     var elementScroll = function (element, options) {
-        var _a, _b;
         var originalBoundFunc = original.elementScroll.bind(element);
         stopRunningScroll(element);
         if (options.left === undefined && options.top === undefined) {
@@ -121,8 +131,8 @@
         }
         var startX = element.scrollLeft;
         var startY = element.scrollTop;
-        var targetX = nonFinite((_a = options.left) !== null && _a !== void 0 ? _a : startX);
-        var targetY = nonFinite((_b = options.top) !== null && _b !== void 0 ? _b : startY);
+        var targetX = nonFinite(options.left !== undefined ? options.left : startX);
+        var targetY = nonFinite(options.top !== undefined ? options.top : startY);
         if (options.behavior !== "smooth") {
             return originalBoundFunc(targetX, targetY);
         }
@@ -150,7 +160,7 @@
             cancelAnimationFrame(context.rafId);
             removeEventListener();
         };
-        var running = { target: element, cancel: cancelScroll };
+        var running = { target: scrollBox(element), cancel: cancelScroll };
         runningScrolls.push(running);
         window.addEventListener("wheel", cancelScroll, {
             passive: true,
@@ -696,6 +706,7 @@
                 if (arguments.length === 1 && isObject(scrollIntoViewOptions)) {
                     return elementScrollIntoView(this, __assign(__assign({}, scrollIntoViewOptions), animationOptions));
                 }
+                stopRunningScrollsAround(this);
                 return originalFunc.apply(this, arguments);
             });
         });
@@ -722,7 +733,6 @@
     };
 
     var windowScroll = function (options) {
-        var _a, _b;
         var originalBoundFunc = original.windowScroll.bind(window);
         stopRunningScroll(window);
         if (options.left === undefined && options.top === undefined) {
@@ -730,8 +740,8 @@
         }
         var startX = window.scrollX || window.pageXOffset;
         var startY = window.scrollY || window.pageYOffset;
-        var targetX = nonFinite((_a = options.left) !== null && _a !== void 0 ? _a : startX);
-        var targetY = nonFinite((_b = options.top) !== null && _b !== void 0 ? _b : startY);
+        var targetX = nonFinite(options.left !== undefined ? options.left : startX);
+        var targetY = nonFinite(options.top !== undefined ? options.top : startY);
         if (options.behavior !== "smooth") {
             return originalBoundFunc(targetX, targetY);
         }

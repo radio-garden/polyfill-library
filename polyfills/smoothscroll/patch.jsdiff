@@ -13,34 +13,53 @@
  
      var ease = function (k) {
          return 0.5 * (1 - Math.cos(Math.PI * k));
-@@ -59,8 +59,16 @@
+@@ -59,8 +59,27 @@
      var isObject = function (value) {
          var type = typeof value;
          return value !== null && (type === "object" || type === "function");
      };
 +    var runningScrolls = [];
++    var scrollBox = function (target) {
++        return target === window || target === (document.scrollingElement || document.documentElement) ? window : target;
++    };
 +    var stopRunningScroll = function (target) {
++        var box = scrollBox(target);
 +        for (var i = 0; i < runningScrolls.length; i++) {
-+            if (runningScrolls[i].target === target) {
++            if (runningScrolls[i].target === box) {
 +                return runningScrolls[i].cancel();
 +            }
 +        }
++    };
++    var stopRunningScrollsAround = function (element) {
++        runningScrolls.slice().forEach(function (running) {
++            if (running.target === window || running.target.contains(element)) {
++                running.cancel();
++            }
++        });
 +    };
  
      /*! *****************************************************************************
      Copyright (c) Microsoft Corporation.
  
-@@ -106,8 +114,9 @@
+@@ -104,23 +123,27 @@
+         return ar;
+     }
  
      var elementScroll = function (element, options) {
-         var _a, _b;
+-        var _a, _b;
          var originalBoundFunc = original.elementScroll.bind(element);
 +        stopRunningScroll(element);
          if (options.left === undefined && options.top === undefined) {
              return;
          }
          var startX = element.scrollLeft;
-@@ -119,8 +128,12 @@
+         var startY = element.scrollTop;
+-        var targetX = nonFinite((_a = options.left) !== null && _a !== void 0 ? _a : startX);
+-        var targetY = nonFinite((_b = options.top) !== null && _b !== void 0 ? _b : startY);
++        var targetX = nonFinite(options.left !== undefined ? options.left : startX);
++        var targetY = nonFinite(options.top !== undefined ? options.top : startY);
+         if (options.behavior !== "smooth") {
+             return originalBoundFunc(targetX, targetY);
          }
          var removeEventListener = function () {
              window.removeEventListener("wheel", cancelScroll);
@@ -53,18 +72,18 @@
          var context = {
              timeStamp: now(),
              duration: options.duration,
-@@ -136,8 +149,10 @@
+@@ -136,8 +159,10 @@
          var cancelScroll = function () {
              cancelAnimationFrame(context.rafId);
              removeEventListener();
          };
-+        var running = { target: element, cancel: cancelScroll };
++        var running = { target: scrollBox(element), cancel: cancelScroll };
 +        runningScrolls.push(running);
          window.addEventListener("wheel", cancelScroll, {
              passive: true,
              once: true,
          });
-@@ -160,8 +175,9 @@
+@@ -160,8 +185,9 @@
                          throw new TypeError("Failed to execute 'scroll' on 'Element': parameter 1 ('options') is not an object.");
                      }
                      return elementScroll(this, __assign(__assign({}, scrollOptions), animationOptions));
@@ -74,7 +93,17 @@
              });
          });
      };
-@@ -696,20 +712,20 @@
+@@ -679,8 +705,9 @@
+                 var scrollIntoViewOptions = arguments[0];
+                 if (arguments.length === 1 && isObject(scrollIntoViewOptions)) {
+                     return elementScrollIntoView(this, __assign(__assign({}, scrollIntoViewOptions), animationOptions));
+                 }
++                stopRunningScrollsAround(this);
+                 return originalFunc.apply(this, arguments);
+             });
+         });
+     };
+@@ -696,33 +723,36 @@
                      var scrollToOptions = arguments[0];
                      if (!isObject(scrollToOptions)) {
                          throw new TypeError("Failed to execute 'scrollTo' on 'Element': parameter 1 ('options') is not an object.");
@@ -91,14 +120,20 @@
      };
  
      var windowScroll = function (options) {
-         var _a, _b;
+-        var _a, _b;
          var originalBoundFunc = original.windowScroll.bind(window);
 +        stopRunningScroll(window);
          if (options.left === undefined && options.top === undefined) {
              return;
          }
          var startX = window.scrollX || window.pageXOffset;
-@@ -721,8 +737,12 @@
+         var startY = window.scrollY || window.pageYOffset;
+-        var targetX = nonFinite((_a = options.left) !== null && _a !== void 0 ? _a : startX);
+-        var targetY = nonFinite((_b = options.top) !== null && _b !== void 0 ? _b : startY);
++        var targetX = nonFinite(options.left !== undefined ? options.left : startX);
++        var targetY = nonFinite(options.top !== undefined ? options.top : startY);
+         if (options.behavior !== "smooth") {
+             return originalBoundFunc(targetX, targetY);
          }
          var removeEventListener = function () {
              window.removeEventListener("wheel", cancelScroll);
@@ -111,7 +146,7 @@
          var context = {
              timeStamp: now(),
              duration: options.duration,
-@@ -738,8 +758,10 @@
+@@ -738,8 +768,10 @@
          var cancelScroll = function () {
              cancelAnimationFrame(context.rafId);
              removeEventListener();
@@ -122,7 +157,7 @@
              passive: true,
              once: true,
          });
-@@ -761,16 +783,18 @@
+@@ -761,16 +793,18 @@
                      throw new TypeError("Failed to execute 'scroll' on 'Window': parameter 1 ('options') is not an object.");
                  }
                  return windowScroll(__assign(__assign({}, scrollOptions), animationOptions));
@@ -141,7 +176,7 @@
          }
          return windowScroll(__assign(__assign({}, options), { left: left, top: top }));
      };
-@@ -802,12 +826,11 @@
+@@ -802,12 +836,11 @@
                  var scrollToOptions = arguments[0];
                  if (!isObject(scrollToOptions)) {
                      throw new TypeError("Failed to execute 'scrollTo' on 'Window': parameter 1 ('options') is not an object.");
