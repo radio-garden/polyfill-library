@@ -35,3 +35,13 @@ it('works as expected', function () {
 		}, TypeError);
 	}
 });
+
+it('does not slow down on a long run of interior whitespace', function () {
+	var input = 'a' + new Array(100001).join(' ') + 'a';
+	var padded = ' \n' + input + ' \n';
+	var start = new Date().getTime();
+	var result = padded.trimEnd();
+	var elapsed = new Date().getTime() - start;
+	proclaim.strictEqual(result, ' \n' + input);
+	proclaim.isTrue(elapsed < 1000, 'trimEnd took ' + elapsed + 'ms');
+});

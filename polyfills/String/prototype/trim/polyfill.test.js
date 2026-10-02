@@ -24,6 +24,15 @@ it("shouldn't remove zero width space characters as they are not in the Zs Unico
 	// ECMAScript WhiteSpace intentionally excludes all code points that have the Unicode “White_Space” property but which are not classified in category "Space_Separator" ("Zs").
 	proclaim.strictEqual('\u200b\u0085'.trim(), '\u200b\u0085');
 });
+it('does not slow down on a long run of interior whitespace', function () {
+	var input = 'a' + new Array(100001).join(' ') + 'a';
+	var padded = ' \n' + input + ' \n';
+	var start = new Date().getTime();
+	var result = padded.trim();
+	var elapsed = new Date().getTime() - start;
+	proclaim.strictEqual(result, input);
+	proclaim.isTrue(elapsed < 1000, 'trim took ' + elapsed + 'ms');
+});
 var supportsStrictModeTests = (function () {
 	'use strict';
 
