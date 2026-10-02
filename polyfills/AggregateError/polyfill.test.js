@@ -1,5 +1,5 @@
 
-/* globals AggregateError */
+/* globals AggregateError, Reflect */
 
 function makeArrayIterator (array) {
 	var i = 0;
@@ -121,6 +121,32 @@ describe('AggregateError', function () {
 
 	(setPrototypeOfKeepsObject ? it : it.skip)("is an Error to Object.prototype.toString", function () {
 		proclaim.equal(Object.prototype.toString.call(new AggregateError([], 'm')), '[object Error]');
+	});
+
+	// Where new.target cannot be compiled, the polyfill falls back to recognising subclasses by `this`.
+	var supportsNewTarget = (function () {
+		try {
+			return Function('return new.target')() === undefined;
+		} catch (e) {
+			return false;
+		}
+	}());
+
+	if (supportsNewTarget && typeof Reflect === 'object' && typeof Reflect.construct === 'function') {
+		it("uses the prototype of newTarget with Reflect.construct", function () {
+			function Unrelated() {}
+			var aggregateError = Reflect.construct(AggregateError, [[1], 'm'], Unrelated);
+			proclaim.strictEqual(Object.getPrototypeOf(aggregateError), Unrelated.prototype);
+			proclaim.equal(aggregateError.message, 'm');
+			proclaim.deepStrictEqual(aggregateError.errors, [1]);
+		});
+	}
+
+	it("ignores the this value when called as a method", function () {
+		var object = { make: AggregateError };
+		var aggregateError = object.make([1], 'm');
+		proclaim.strictEqual(Object.getPrototypeOf(aggregateError), AggregateError.prototype);
+		proclaim.equal(aggregateError.message, 'm');
 	});
 
 	it("converts to a string like an Error", function () {
