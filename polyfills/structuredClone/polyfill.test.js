@@ -121,6 +121,15 @@ describe('structuredClone', function () {
 			proclaim.equal(clone.byteLength, 4);
 			proclaim.equal(clone.getUint8(3), 7);
 		});
+
+		it('keeps the offset, length and buffer of a DataView', function () {
+			var buffer = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]).buffer;
+			var clone = structuredClone({ buffer: buffer, view: new DataView(buffer, 4, 2) });
+			proclaim.equal(clone.view.byteOffset, 4);
+			proclaim.equal(clone.view.byteLength, 2);
+			proclaim.equal(clone.view.getUint8(0), 4);
+			proclaim.strictEqual(clone.view.buffer, clone.buffer);
+		});
 	}
 
 	it('clones an invalid Date', function () {
