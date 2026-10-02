@@ -1,5 +1,5 @@
 
-/* globals AggregateError */
+/* globals AggregateError, Reflect */
 
 function makeArrayIterator (array) {
 	var i = 0;
@@ -94,6 +94,63 @@ describe('AggregateError', function () {
 		proclaim.throws(function () {
 			new AggregateError(0)
 		}, /is not iterable/);
+	});
+
+	it("has no enumerable own properties", function () {
+		var aggregateError = new AggregateError([new Error('x')], 'm');
+		proclaim.deepStrictEqual(Object.keys(aggregateError), []);
+		proclaim.isNotEnumerable(aggregateError, 'message');
+		proclaim.isNotEnumerable(aggregateError, 'errors');
+	});
+
+	it("inherits name from AggregateError.prototype", function () {
+		proclaim.isFalse(Object.prototype.hasOwnProperty.call(new AggregateError([]), 'name'));
+		proclaim.equal(AggregateError.prototype.name, 'AggregateError');
+		proclaim.equal(AggregateError.prototype.message, '');
+	});
+
+	it("has no own message when message is undefined", function () {
+		proclaim.isFalse(Object.prototype.hasOwnProperty.call(new AggregateError([]), 'message'));
+	});
+
+	// Without a __proto__ setter, Object.setPrototypeOf returns a copy, which loses the error's internal slot.
+	var setPrototypeOfKeepsObject = (function () {
+		var object = {};
+		return Object.setPrototypeOf(object, {}) === object;
+	}());
+
+	(setPrototypeOfKeepsObject ? it : it.skip)("is an Error to Object.prototype.toString", function () {
+		proclaim.equal(Object.prototype.toString.call(new AggregateError([], 'm')), '[object Error]');
+	});
+
+	// Where new.target cannot be compiled, the polyfill falls back to recognising subclasses by `this`.
+	var supportsNewTarget = (function () {
+		try {
+			return Function('return new.target')() === undefined;
+		} catch (e) {
+			return false;
+		}
+	}());
+
+	if (supportsNewTarget && typeof Reflect === 'object' && typeof Reflect.construct === 'function') {
+		it("uses the prototype of newTarget with Reflect.construct", function () {
+			function Unrelated() {}
+			var aggregateError = Reflect.construct(AggregateError, [[1], 'm'], Unrelated);
+			proclaim.strictEqual(Object.getPrototypeOf(aggregateError), Unrelated.prototype);
+			proclaim.equal(aggregateError.message, 'm');
+			proclaim.deepStrictEqual(aggregateError.errors, [1]);
+		});
+	}
+
+	it("ignores the this value when called as a method", function () {
+		var object = { make: AggregateError };
+		var aggregateError = object.make([1], 'm');
+		proclaim.strictEqual(Object.getPrototypeOf(aggregateError), AggregateError.prototype);
+		proclaim.equal(aggregateError.message, 'm');
+	});
+
+	it("converts to a string like an Error", function () {
+		proclaim.equal(String(new AggregateError([], 'm')), 'AggregateError: m');
 	});
 
 	if (hasErrorCause) {
