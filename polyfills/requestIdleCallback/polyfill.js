@@ -106,7 +106,13 @@
 	function runCallback(callbackObject) {
 		var deadline = getDeadline(callbackObject);
 		var callback = callbackObject.callback;
-		callback(deadline);
+		try {
+			callback(deadline);
+		} catch (error) {
+			setTimeout(function () {
+				throw error;
+			}, 0);
+		}
 	}
 
 	function scheduleIdleWork() {
