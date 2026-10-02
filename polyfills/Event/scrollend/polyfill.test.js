@@ -351,11 +351,20 @@ describe('Event.scrollend', function () {
 		var target;
 
 		beforeEach(function () {
-			target = document.createElement('div');
+			target = document.body.appendChild(document.createElement('div'));
+			target.setAttribute('style', 'height: 100px; overflow: auto; width: 10px;');
+
+			var content = document.createElement('div');
+			content.setAttribute('style', 'height: 20000px; width: 10px;');
+			target.appendChild(content);
+		});
+
+		afterEach(function () {
+			document.body.removeChild(target);
 		});
 
 		function expectScrollend(listenerCount, done) {
-			target.dispatchEvent(new Event('scroll'));
+			target.scrollTop = 10000;
 			setTimeout(function () {
 				try {
 					proclaim.equal(listenerCount(), 1);
@@ -404,6 +413,20 @@ describe('Event.scrollend', function () {
 			target.addEventListener('scrollend', listener, true);
 			target.removeEventListener('scrollend', listener, false);
 			expectScrollend(function () { return count; }, done);
+		});
+
+		it('does not call a listener removed through an AbortSignal and keeps firing for the others', function (done) {
+			if (typeof AbortController === 'undefined') {
+				done();
+				return;
+			}
+			var aborted = 0;
+			var count = 0;
+			var controller = new AbortController();
+			target.addEventListener('scrollend', function () { aborted++; }, { signal: controller.signal });
+			target.addEventListener('scrollend', function () { count++; });
+			controller.abort();
+			expectScrollend(function () { return aborted === 0 ? count : -aborted; }, done);
 		});
 	});
 });
