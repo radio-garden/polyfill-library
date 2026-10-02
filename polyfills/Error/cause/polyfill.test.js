@@ -1,3 +1,5 @@
+/* global Reflect */
+
 var testCases = [
 	{_Error: Error, name: 'Error', arity: 1},
 	{_Error: EvalError, name: 'EvalError', arity: 1},
@@ -11,6 +13,15 @@ var testCases = [
 if ('AggregateError' in self) {
 	testCases.push({_Error: self.AggregateError, name: 'AggregateError', arity: 2});
 }
+
+// `class` is a syntax error where it is not supported, so it is only ever parsed through `Function`
+var makeSubclass = (function () {
+	try {
+		return new Function('_Error', 'return class Subclass extends _Error {}');
+	} catch (e) {
+		return null;
+	}
+})();
 
 testCases.forEach(function (testCase) {
 	var _Error = testCase._Error;
@@ -70,6 +81,19 @@ testCases.forEach(function (testCase) {
 			it('creates an object without new', function () {
 				proclaim.isObject(_Error());
 			});
+
+			if (makeSubclass) {
+				it('can be subclassed', function () {
+					var Subclass = makeSubclass(_Error);
+					var error = new Subclass('m', { cause: 'c' });
+					proclaim.isInstanceOf(error, Subclass);
+					proclaim.isInstanceOf(error, _Error);
+					proclaim.isInstanceOf(error, Error);
+					proclaim.equal(error.constructor, Subclass);
+					proclaim.equal(error.message, 'm');
+					proclaim.equal(error.cause, 'c');
+				});
+			}
 		} else {
 			it('is instance of Error', function () {
 				proclaim.isInstanceOf(new _Error([], 'm'), Error);
@@ -96,6 +120,40 @@ testCases.forEach(function (testCase) {
 			it('creates an object without new', function () {
 				proclaim.isObject(_Error([]));
 			});
+
+			if (makeSubclass) {
+				it('can be subclassed', function () {
+					var Subclass = makeSubclass(_Error);
+					var error = new Subclass([], 'm', { cause: 'c' });
+					proclaim.isInstanceOf(error, Subclass);
+					proclaim.isInstanceOf(error, _Error);
+					proclaim.isInstanceOf(error, Error);
+					proclaim.equal(error.constructor, Subclass);
+					proclaim.deepEqual(error.errors, []);
+					proclaim.equal(error.message, 'm');
+					proclaim.equal(error.cause, 'c');
+				});
+			}
 		}
+
+		var args = arity === 2 ? [[], 'm'] : ['m'];
+
+		// Where new.target cannot be compiled, the polyfill falls back to recognising subclasses by `this`.
+		if (makeSubclass && typeof Reflect === 'object' && typeof Reflect.construct === 'function') {
+			it('uses the prototype of newTarget with Reflect.construct', function () {
+				function Unrelated() {}
+				var error = Reflect.construct(_Error, args, Unrelated);
+				proclaim.strictEqual(Object.getPrototypeOf(error), Unrelated.prototype);
+				proclaim.equal(error.message, 'm');
+			});
+		}
+
+		it('ignores the this value when called as a method', function () {
+			var object = { make: _Error };
+			var error = arity === 2 ? object.make([], 'm') : object.make('m');
+			proclaim.isInstanceOf(error, _Error);
+			proclaim.strictEqual(Object.getPrototypeOf(error), _Error.prototype);
+			proclaim.equal(error.message, 'm');
+		});
 	});
 });
