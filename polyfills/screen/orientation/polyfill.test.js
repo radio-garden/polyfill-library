@@ -117,3 +117,117 @@ describe('on a simulated device', function () {
 		});
 	});
 });
+
+describe('change events', function () {
+	var saved;
+	var angle;
+
+	function override(object, key, value) {
+		saved.push([object, key, Object.getOwnPropertyDescriptor(object, key)]);
+		Object.defineProperty(object, key, { value: value, configurable: true, writable: true });
+	}
+
+	function dispatchResize() {
+		var event = document.createEvent('Event');
+		event.initEvent('resize', false, false);
+		window.dispatchEvent(event);
+	}
+
+	// Turns the simulated device a quarter and lets the polyfill notice.
+	function rotate() {
+		angle = angle === 0 ? 90 : 0;
+		window.orientation = angle;
+		dispatchResize();
+	}
+
+	beforeEach(function () {
+		saved = [];
+		angle = 0;
+		if ('ScreenOrientation' in window) {
+			this.skip();
+		}
+		try {
+			override(navigator, 'platform', 'iPhone');
+			override(window, 'orientation', 0);
+		} catch (e) {
+			this.skip();
+		}
+		dispatchResize();
+	});
+
+	afterEach(function () {
+		for (var i = saved.length - 1; i >= 0; i--) {
+			if (saved[i][2]) {
+				Object.defineProperty(saved[i][0], saved[i][1], saved[i][2]);
+			} else {
+				delete saved[i][0][saved[i][1]];
+			}
+		}
+		dispatchResize();
+	});
+
+	it('reports a throwing listener before the next listener runs, and runs it', function () {
+		var error = new Error('thrown from a change listener');
+		var events = [];
+		var reported = [];
+		var onerror = window.onerror;
+		var first = function () {
+			events.push('first');
+			throw error;
+		};
+		var second = function () {
+			events.push('second');
+		};
+		window.onerror = function (message, source, line, column, thrown) {
+			events.push('error:' + (thrown && thrown.message));
+			reported.push(thrown);
+			return true;
+		};
+		window.screen.orientation.addEventListener('change', first);
+		window.screen.orientation.addEventListener('change', second);
+		try {
+			rotate();
+		} finally {
+			window.onerror = onerror;
+			window.screen.orientation.removeEventListener('change', first);
+			window.screen.orientation.removeEventListener('change', second);
+		}
+		proclaim.deepStrictEqual(events, ['first', 'error:' + error.message, 'second']);
+		proclaim.strictEqual(reported[0], error);
+	});
+
+	it('calls the handleEvent method of a listener object', function () {
+		var types = [];
+		var listener = {
+			handleEvent: function (event) {
+				types.push(event.type);
+			}
+		};
+		window.screen.orientation.addEventListener('change', listener);
+		rotate();
+		window.screen.orientation.removeEventListener('change', listener);
+		proclaim.deepStrictEqual(types, ['change']);
+	});
+
+	it('calls a listener added with once: true only once', function () {
+		var calls = 0;
+		window.screen.orientation.addEventListener('change', function () {
+			calls++;
+		}, { once: true });
+		rotate();
+		rotate();
+		proclaim.strictEqual(calls, 1);
+	});
+
+	it('calls onchange with the change event', function () {
+		var types = [];
+		proclaim.strictEqual(window.screen.orientation.onchange, null);
+		window.screen.orientation.onchange = function (event) {
+			types.push(event.type);
+		};
+		rotate();
+		window.screen.orientation.onchange = null;
+		rotate();
+		proclaim.deepStrictEqual(types, ['change']);
+	});
+});
