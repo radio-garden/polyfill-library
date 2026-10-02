@@ -4,6 +4,9 @@
 var _ErrorConstructor;
 
 (function () {
+	// A wrapped constructor may itself be a polyfill without the engine's statics.
+	var _BaseError = self.Error;
+
 	// 20.5.8.1 InstallErrorCause ( O, options )
 	function InstallErrorCause(O, options) {
 		// 1. If options is an Object and ? HasProperty(options, "cause") is true, then
@@ -25,8 +28,8 @@ var _ErrorConstructor;
 			var O = arity === 2
 				? _NativeError.call(null, args[0], args[1])
 				: _NativeError.call(null, args[0]);
-			if (typeof _NativeError.captureStackTrace === 'function') {
-				_NativeError.captureStackTrace(O, _Error);
+			if (typeof _BaseError.captureStackTrace === 'function') {
+				_BaseError.captureStackTrace(O, _Error);
 			}
 			InstallErrorCause(O, args.length > arity && args[arity]);
 			if (Type(prototype) === 'object' && prototype !== _Error.prototype) {
