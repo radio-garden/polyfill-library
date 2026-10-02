@@ -2,32 +2,13 @@
 // 23.2.4.3 TypedArrayCreateSameType ( exemplar, argumentList )
 function TypedArrayCreateSameType(exemplar, argumentList) { // eslint-disable-line no-unused-vars
 	// 1. Let constructor be the intrinsic object associated with the constructor name exemplar.[[TypedArrayName]] in Table 68.
-	var constructor = {
-		Int8Array: self.Int8Array,
-		Uint8Array: self.Uint8Array,
-		Uint8ClampedArray: self.Uint8ClampedArray,
-		Int16Array: self.Int16Array,
-		Uint16Array: self.Uint16Array,
-		Int32Array: self.Int32Array,
-		Uint32Array: self.Uint32Array,
-		Float32Array: self.Float32Array,
-		Float64Array: self.Float64Array
-	}[exemplar && exemplar.constructor && exemplar.constructor.name];
-
-	// the `ArrayBuffer` polyfill does not expose a proper `constructor.name`
-	if (!constructor) {
-		var proto = Object.getPrototypeOf(Object(exemplar));
-		constructor = {
-			packI8: self.Int8Array,
-			packU8: self.Uint8Array,
-			packU8Clamped: self.Uint8ClampedArray,
-			packI16: self.Int16Array,
-			packU16: self.Uint16Array,
-			packI32: self.Int32Array,
-			packU32: self.Uint32Array,
-			packF32: self.Float32Array,
-			packF64: self.Float64Array
-		}[proto && proto._pack && proto._pack.name];
+	var names = ['Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'];
+	var constructor;
+	for (var i = 0; i < names.length && !constructor; i++) {
+		var candidate = self[names[i]];
+		if (candidate && Object.prototype.isPrototypeOf.call(candidate.prototype, exemplar)) {
+			constructor = candidate;
+		}
 	}
 
 	// 2. Let result be ? TypedArrayCreate(constructor, argumentList).
