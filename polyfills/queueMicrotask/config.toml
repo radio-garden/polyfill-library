@@ -1,6 +1,5 @@
 dependencies = [
 	"Promise",
-	"Event"
 ]
 
 [browsers]

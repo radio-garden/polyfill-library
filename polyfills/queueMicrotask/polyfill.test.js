@@ -41,15 +41,7 @@ describe('queueMicrotask', function() {
 		});
 	});
 
-	var supportsErrorEventConstructor = (function () {
-		try {
-			return new ErrorEvent('error').type === 'error';
-		} catch (e) {
-			return false;
-		}
-	}());
-
-	(supportsErrorEventConstructor ? it : it.skip)('passes the message and the exception to self.onerror', function(done) {
+	it('passes the message and the exception to self.onerror', function(done) {
 		var mochaError = self.onerror;
 		var taskError = new Error("uh oh");
 		self.onerror = function (message, source, lineno, colno, error) {

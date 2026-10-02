@@ -1,36 +1,44 @@
 /* global Promise */
-self.queueMicrotask = function queueMicrotask(microtask) {
-	if (arguments.length < 1) {
-		throw new TypeError(
-			"queueMicrotask requires at least 1 argument, but only 0 were passed"
-		);
-	}
-
-	if (typeof microtask != "function") {
-		throw new TypeError("Argument 1 of queueMicrotask is not callable.");
-	}
-
-	Promise.resolve()
-		.then(microtask).catch(function(e) {
-			var thrown = Object(e);
-			var init = {
-				message: e instanceof Error ? e.message : String(e),
-				filename: thrown.filename || thrown.fileName,
-				lineno: thrown.lineno || thrown.lineNumber,
-				colno: thrown.colno || thrown.columnNumber,
-				error: e,
-				cancelable: true
-			};
-			var event;
-			// self.onerror receives the message and the exception only from an ErrorEvent.
+(function () {
+	var run;
+	if (typeof document !== 'undefined' && typeof document.createEvent === 'function') {
+		var target = document.createElement('span');
+		// The browser reports an exception thrown by a listener as uncaught, and dispatchEvent still returns.
+		target.addEventListener('microtask', function (event) {
+			var microtask = event.microtask;
+			microtask();
+		}, false);
+		run = function (microtask) {
+			var event = document.createEvent('Event');
+			event.initEvent('microtask', false, false);
+			event.microtask = microtask;
+			target.dispatchEvent(event);
+		};
+	} else {
+		run = function (microtask) {
 			try {
-				event = new ErrorEvent('error', init);
-			} catch (_) {
-				event = new Event('error', { cancelable: true });
-				for (var key in init) {
-					event[key] = init[key];
-				}
+				microtask();
+			} catch (e) {
+				setTimeout(function () {
+					throw e;
+				}, 0);
 			}
-			self.dispatchEvent(event);
+		};
+	}
+
+	self.queueMicrotask = function queueMicrotask(microtask) {
+		if (arguments.length < 1) {
+			throw new TypeError(
+				"queueMicrotask requires at least 1 argument, but only 0 were passed"
+			);
+		}
+
+		if (typeof microtask != "function") {
+			throw new TypeError("Argument 1 of queueMicrotask is not callable.");
+		}
+
+		Promise.resolve().then(function () {
+			run(microtask);
 		});
-};
+	};
+})();
