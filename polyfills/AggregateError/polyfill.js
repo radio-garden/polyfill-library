@@ -1,4 +1,4 @@
-/* global _ErrorConstructor, CreateDataPropertyOrThrow, CreateMethodProperty, IterableToList */
+/* global _ErrorConstructor, CreateMethodProperty, CreateNonEnumerableDataPropertyOrThrow, IterableToList */
 (function () {
 	var hasErrorCause = (function () {
 		try {
@@ -8,14 +8,15 @@
 		}
 	})();
 
+	var NativeError = Error.prototype.constructor;
+
 	function AggregateError (errors, message) {
-		if (!(this instanceof AggregateError)) return new AggregateError(errors, message);
-
-		var temp = typeof message === 'undefined' ? new Error() : new Error(message);
-
-		CreateDataPropertyOrThrow(this, 'name', 'AggregateError');
-		CreateDataPropertyOrThrow(this, 'message', temp.message);
-		CreateDataPropertyOrThrow(this, 'stack', temp.stack);
+		var prototype = this instanceof AggregateError ? Object.getPrototypeOf(this) : AggregateError.prototype;
+		// A native error carries the internal slot behind the [object Error] tag.
+		var O = Object.setPrototypeOf(typeof message === 'undefined' ? new NativeError() : new NativeError(message), prototype);
+		if (typeof NativeError.captureStackTrace === 'function') {
+			NativeError.captureStackTrace(O, AggregateError);
+		}
 
 		var errorsList;
 		if (Array.isArray(errors)) {
@@ -28,11 +29,14 @@
 			}
 		}
 
-		CreateDataPropertyOrThrow(this, 'errors', errorsList);
+		CreateNonEnumerableDataPropertyOrThrow(O, 'errors', errorsList);
+		return O;
 	}
 
 	AggregateError.prototype = Object.create(Error.prototype);
-	AggregateError.prototype.constructor = AggregateError;
+	CreateMethodProperty(AggregateError.prototype, 'constructor', AggregateError);
+	CreateMethodProperty(AggregateError.prototype, 'name', 'AggregateError');
+	CreateMethodProperty(AggregateError.prototype, 'message', '');
 
 	CreateMethodProperty(self, 'AggregateError', AggregateError);
 
