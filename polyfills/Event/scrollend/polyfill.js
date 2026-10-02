@@ -35,7 +35,8 @@
 	function onAddListener(originalFn, type, callback, options) {
 		var scrollPort = this;
 
-		if (callback === null || callback === undefined) {
+		var signal = options && typeof options === 'object' ? options.signal : undefined;
+		if (callback === null || callback === undefined || (signal && signal.aborted)) {
 			return;
 		}
 
@@ -47,6 +48,11 @@
 		var capture = usesCapture(options);
 		if (indexOfListener(data.listeners, type, callback, capture) === -1) {
 			data.listeners.push({ type: type, callback: callback, capture: capture });
+			if (signal) {
+				signal.addEventListener('abort', function () {
+					scrollPort.removeEventListener(type, callback, capture);
+				});
+			}
 		}
 	}
 
