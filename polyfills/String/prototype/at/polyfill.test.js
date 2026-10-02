@@ -27,12 +27,20 @@ describe('at', function () {
 		proclaim.equal(string.at(4), undefined);
 	});
 
-	it('throws a TypeError when called on null or undefined', function () {
-		proclaim.throws(function () {
-			String.prototype.at.call(null, 0);
-		}, TypeError);
-		proclaim.throws(function () {
-			String.prototype.at.call(undefined, 0);
-		}, TypeError);
-	});
+	var supportsStrictModeTests = (function () {
+		'use strict';
+
+		return this === undefined;
+	}).call(undefined);
+
+	if (supportsStrictModeTests) {
+		it('throws a TypeError when called on null or undefined', function () {
+			proclaim.throws(function () {
+				String.prototype.at.call(null, 0);
+			}, TypeError);
+			proclaim.throws(function () {
+				String.prototype.at.call(undefined, 0);
+			}, TypeError);
+		});
+	}
 });
