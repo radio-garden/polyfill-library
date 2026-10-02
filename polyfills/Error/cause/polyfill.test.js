@@ -157,3 +157,44 @@ testCases.forEach(function (testCase) {
 		});
 	});
 });
+
+describe('Error statics', function () {
+	// The native constructor stays reachable through the shared prototype.
+	var NativeError = Error.prototype.constructor;
+
+	it('keeps the static properties of the native constructor', function () {
+		var keys = Object.getOwnPropertyNames(NativeError);
+		for (var i = 0; i < keys.length; i++) {
+			var key = keys[i];
+			if (key === 'length' || key === 'name' || key === 'prototype' || key === 'arguments' || key === 'caller') {
+				continue;
+			}
+			proclaim.isTrue(key in Error, key);
+			proclaim.strictEqual(Error[key], NativeError[key], key);
+		}
+	});
+
+	if (typeof NativeError.stackTraceLimit === 'number') {
+		it('writes Error.stackTraceLimit through to the engine', function () {
+			var limit = NativeError.stackTraceLimit;
+			try {
+				Error.stackTraceLimit = 1;
+				proclaim.strictEqual(NativeError.stackTraceLimit, 1);
+			} finally {
+				NativeError.stackTraceLimit = limit;
+			}
+		});
+	}
+
+	if (typeof NativeError.captureStackTrace === 'function') {
+		testCases.forEach(function (testCase) {
+			it('starts the stack of a new ' + testCase.name + ' at the caller', function () {
+				var _Error = testCase._Error;
+				function makeError() {
+					return testCase.arity === 2 ? new _Error([], 'm') : new _Error('m');
+				}
+				proclaim.include(makeError().stack.split('\n')[1], 'makeError');
+			});
+		});
+	}
+});

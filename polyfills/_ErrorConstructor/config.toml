@@ -4,6 +4,8 @@ dependencies = [
 	"_ESAbstract.Get",
 	"_ESAbstract.HasProperty",
 	"_ESAbstract.Type",
+	"Object.getOwnPropertyDescriptor",
+	"Object.getOwnPropertyNames",
 	"Object.setPrototypeOf",
 ]
 spec = "https://tc39.es/ecma262/multipage/fundamental-objects.html#sec-installerrorcause"
