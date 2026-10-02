@@ -157,6 +157,18 @@ describe('structuredClone', function () {
 		proclaim.equal(clone.message, 'test');
 	});
 
+	it('clones an error named after a non-error global as an Error', function () {
+		var names = ['Function', 'Array', 'Worker', 'Object'];
+		for (var i = 0; i < names.length; i++) {
+			var error = new Error('test');
+			error.name = names[i];
+			var clone = structuredClone(error);
+			proclaim.isInstanceOf(clone, Error, names[i]);
+			proclaim.equal(clone.name, 'Error', names[i]);
+			proclaim.equal(clone.message, 'test', names[i]);
+		}
+	});
+
 	it('throws on a function, even inside an object', function () {
 		proclaim.throws(function () {
 			structuredClone(function () {});
