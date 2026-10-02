@@ -47,6 +47,24 @@ describe('String.prototype.replaceAll', function () {
 		proclaim.deepStrictEqual('origami'.replaceAll('a'), 'origundefinedmi');
 	});
 
+	it("expands $&, $$, $` and $' in a string replacement", function() {
+		proclaim.deepStrictEqual('abc'.replaceAll('b', '[$&|$$|$]'), 'a[b|$|$]c');
+		proclaim.deepStrictEqual('xyab'.replaceAll('a', '[$`]'), 'xy[xy]b');
+		proclaim.deepStrictEqual('xyab'.replaceAll('x', '[$`]'), '[]yab');
+		proclaim.deepStrictEqual('aXbXc'.replaceAll('X', '$`'), 'aabaXbc');
+		proclaim.deepStrictEqual('xyab'.replaceAll('a', "[$']"), 'xy[b]b');
+		proclaim.deepStrictEqual('xyab'.replaceAll('b', "[$']"), 'xya[]');
+	});
+
+	it("keeps $n, $nn and $<name> literal when a string search has no captures", function() {
+		proclaim.deepStrictEqual('abc'.replaceAll('b', '$1'), 'a$1c');
+		proclaim.deepStrictEqual('abc'.replaceAll('b', '$0'), 'a$0c');
+		proclaim.deepStrictEqual('abc'.replaceAll('b', '$10'), 'a$10c');
+		proclaim.deepStrictEqual('abc'.replaceAll('b', '$00'), 'a$00c');
+		proclaim.deepStrictEqual('abc'.replaceAll('b', '$9$99'), 'a$9$99c');
+		proclaim.deepStrictEqual('abc'.replaceAll('b', '$<n>'), 'a$<n>c');
+	});
+
 	it("an empty string to replace, replaces each code unit in a single char string", function() {
 		proclaim.deepStrictEqual('origami'.replaceAll('', '_'), '_o_r_i_g_a_m_i_');
 	});
