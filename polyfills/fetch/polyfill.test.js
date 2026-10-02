@@ -1,3 +1,4 @@
+/* globals JSON */
 // Minimal test to ensure that fetch is included in CI
 // TODO : real tests
 it('exists', function () {
@@ -37,5 +38,24 @@ if ('AbortController' in self) {
 		var req = new Request('#', { signal: ctrl.signal });
 		proclaim.ok(req.signal);
 		proclaim.ok(req.signal.aborted);
+	});
+}
+
+if (self.fetch && self.fetch.polyfill) {
+	it('sends headers given as an array of name/value pairs', function () {
+		var NativeXMLHttpRequest = self.XMLHttpRequest;
+		var sent = {};
+		self.XMLHttpRequest = function () {};
+		self.XMLHttpRequest.prototype.open = function () {};
+		self.XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+			sent[name.toLowerCase()] = value;
+		};
+		self.XMLHttpRequest.prototype.send = function () {};
+		try {
+			fetch('/', { headers: [['X-A', '1'], ['X-B', '2']] });
+		} finally {
+			self.XMLHttpRequest = NativeXMLHttpRequest;
+		}
+		proclaim.deepEqual(sent, { 'x-a': '1', 'x-b': '2' }, 'sent ' + JSON.stringify(sent));
 	});
 }
