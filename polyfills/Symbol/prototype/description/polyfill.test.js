@@ -69,6 +69,15 @@ it.skip('works with no input', function () {
 	proclaim.strictEqual(s.description, undefined);
 });
 
+it('leaves Symbol.prototype.constructor as Symbol', function () {
+	proclaim.strictEqual(Symbol.prototype.constructor, Symbol);
+	proclaim.isNotEnumerable(Symbol.prototype, 'constructor');
+});
+
+it('leaves the constructor of a Symbol object as Symbol', function () {
+	proclaim.strictEqual(Object(Symbol('a')).constructor, Symbol);
+});
+
 // non symbols
 
 if (Object.getOwnPropertyDescriptor) {

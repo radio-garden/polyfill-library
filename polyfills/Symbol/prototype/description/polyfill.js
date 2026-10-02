@@ -92,4 +92,10 @@
 	};
 
 	global.Symbol = new Proxy(global.Symbol, symbolProxyHandler);
+	Object.defineProperty(global.Symbol.prototype, "constructor", {
+		configurable: true,
+		enumerable: false,
+		writable: true,
+		value: global.Symbol
+	});
 }(self));
