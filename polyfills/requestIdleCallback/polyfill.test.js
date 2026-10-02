@@ -303,6 +303,29 @@ describe('requestIdleCallback', function () {
 		// Keep the even loop busy but not longer than the timeout.
 		sleep(busyFor);
 	});
+
+	it('schedules through a MessageChannel, not window.postMessage, where MessageChannel exists', function (done) {
+		if (typeof MessageChannel === 'undefined') {
+			done();
+			return;
+		}
+		var messages = 0;
+		var onMessage = function () {
+			messages++;
+		};
+		window.addEventListener('message', onMessage);
+		requestIdleCallback(function () {
+			setTimeout(function () {
+				window.removeEventListener('message', onMessage);
+				try {
+					proclaim.equal(messages, 0, 'Expected no message events on the window.');
+					done();
+				} catch (error) {
+					done(error);
+				}
+			}, 0);
+		});
+	});
 });
 
 describe('cancelIdleCallback', function () {
