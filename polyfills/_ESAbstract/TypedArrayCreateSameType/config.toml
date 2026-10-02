@@ -1,6 +1,5 @@
 dependencies = [
 	"_ESAbstract.TypedArrayCreate",
-	"Function.prototype.name",
 ]
 
 spec = "https://tc39.es/ecma262/#sec-typedarray-create-same-type"
