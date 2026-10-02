@@ -27,3 +27,4 @@ samsung_mob = "<5.0"
 [install]
 module = "web-animations-js"
 paths = [ "web-animations.min.js" ]
+postinstall = "update.task.js"
