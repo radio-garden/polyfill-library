@@ -18,18 +18,48 @@
 	// Map of scroll-observed elements.
 	var observed = new global.WeakMap();
 
-	function onAddListener(originalFn, type) {
+	function usesCapture(options) {
+		return typeof options === 'boolean' ? options : !!(options && options.capture);
+	}
+
+	function indexOfListener(listeners, type, callback, capture) {
+		for (var i = 0; i < listeners.length; i++) {
+			var listener = listeners[i];
+			if (listener.type === type && listener.callback === callback && listener.capture === capture) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	function onAddListener(originalFn, type, callback, options) {
 		var scrollPort = this;
 
-		var data = observed.get(scrollPort);
-		if (data !== undefined) {
-			data.listeners[type]++;
+		var signal = options && typeof options === 'object' ? options.signal : undefined;
+		if (callback === null || callback === undefined || (signal && signal.aborted)) {
 			return;
 		}
 
+		var data = observed.get(scrollPort);
+		if (data === undefined) {
+			data = observe(originalFn, scrollPort);
+		}
+
+		var capture = usesCapture(options);
+		if (indexOfListener(data.listeners, type, callback, capture) === -1) {
+			data.listeners.push({ type: type, callback: callback, capture: capture });
+			if (signal) {
+				signal.addEventListener('abort', function () {
+					scrollPort.removeEventListener(type, callback, capture);
+				});
+			}
+		}
+	}
+
+	function observe(originalFn, scrollPort) {
 		var timeout = 0;
 
-		data = {
+		var data = {
 			scrollListener: function scrollListener(evt) { // eslint-disable-line no-unused-vars
 				clearTimeout(timeout);
 
@@ -47,17 +77,15 @@
 				}, 100);
 
 			},
-			listeners: {
-				scroll: 0,
-				scrollend: 0
-			}
+			listeners: []
 		};
 
 		originalFn.apply(scrollPort, ['scroll', data.scrollListener]);
 		observed.set(scrollPort, data);
+		return data;
 	}
 
-	function onRemoveListener(originalFn, type) {
+	function onRemoveListener(originalFn, type, callback, options) {
 		var scrollPort = this;
 		var data = observed.get(scrollPort);
 
@@ -65,9 +93,14 @@
 			return;
 		}
 
-		data.listeners[type] = Math.max(0, data.listeners[type] - 1);
+		var index = indexOfListener(data.listeners, type, callback, usesCapture(options));
+		if (index === -1) {
+			return;
+		}
+
+		data.listeners.splice(index, 1);
 		// If there are still listeners, nothing more to do.
-		if ((data.listeners.scroll + data.listeners.scrollend) > 0) {
+		if (data.listeners.length > 0) {
 			return;
 		}
 
