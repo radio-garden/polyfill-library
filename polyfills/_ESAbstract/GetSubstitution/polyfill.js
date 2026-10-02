@@ -50,7 +50,7 @@ var GetSubstitution = (function() { // eslint-disable-line no-unused-vars
 						var digitCount = !nextIsLast && isDigit(nextNext) && parseInt(next + nextNext, 10) <= m ? 2 : 1;
 						var index = parseInt(replacement.slice(i + 1, i + 1 + digitCount), 10);
 						if (index >= 1 && index <= m) {
-							result += Type(captures[index - 1]) === 'Undefined' ? '' : captures[index - 1];
+							result += Type(captures[index - 1]) === 'undefined' ? '' : captures[index - 1];
 						} else {
 							result += replacement.slice(i, i + 1 + digitCount);
 						}
