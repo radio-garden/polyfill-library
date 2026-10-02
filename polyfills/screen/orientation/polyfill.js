@@ -1,33 +1,82 @@
 (function() {
 
-	var propName, nativeGetter;
+	var propName, nativeGetter, last;
 	var err = ' not supported in the screen.orientation polyfill';
+	var listeners = [];
+	var orientation = {
+		onchange: null,
+		addEventListener: function (type, listener) {
+			if (type === 'change' && listener && indexOf(listener) === -1) listeners.push(listener);
+		},
+		removeEventListener: function (type, listener) {
+			var index = indexOf(listener);
+			if (type === 'change' && index !== -1) listeners.splice(index, 1);
+		},
+		lock: function(){
+			throw new Error('lock method'+err);
+		},
+		unlock: function(){
+			throw new Error('unlock method'+err);
+		}
+	};
 
-	function getVal() {
-		var val;
+	function indexOf(listener) {
+		for (var i = 0; i < listeners.length; i++) {
+			if (listeners[i] === listener) return i;
+		}
+		return -1;
+	}
+
+	function current() {
+		var val, angle;
 
 		if (nativeGetter) val = nativeGetter.call(window.screen);
 
-		// If object we assume it's compliant with the spec
-		if (typeof val === 'object') return val;
-
-		// If no native implementation is available, guess based on screen width and height (impossible to tell whether device is upside down so consider both portrait orientations to be primary, likewise landscape)
-		if (typeof val === 'undefined') {
-			val = (screen.width > screen.height) ? 'landscape-primary' : 'portrait-primary';
+		if (typeof val === 'string') {
+			return { type: val, angle: (val.indexOf('secondary') !== -1) ? 180 : 0 };
 		}
-		return {
-			type: val,
-			angle: (val.indexOf('secondary') !== -1) ? 180 : 0,
-			onchange: function() {
-				throw new Error('onchange'+err);
-			},
-			lock: function(){
-				throw new Error('lock method'+err);
-			},
-			unlock: function(){
-				throw new Error('unlock method'+err);
-			}
-		};
+
+		// window.orientation is the rotation from the device's natural orientation, taken to be portrait
+		if (typeof window.orientation === 'number') {
+			angle = (window.orientation % 360 + 360) % 360;
+			return {
+				type: ['portrait-primary', 'landscape-primary', 'portrait-secondary', 'landscape-secondary'][angle / 90],
+				angle: angle
+			};
+		}
+
+		// Impossible to tell whether the device is upside down, so consider both portrait orientations to be primary, likewise landscape
+		return { type: (screen.width > screen.height) ? 'landscape-primary' : 'portrait-primary', angle: 0 };
+	}
+
+	function invoke(listener, event) {
+		try {
+			if (typeof listener === 'function') listener.call(orientation, event);
+			else if (listener && typeof listener.handleEvent === 'function') listener.handleEvent(event);
+		} catch (e) {
+			setTimeout(function () {
+				throw e;
+			}, 0);
+		}
+	}
+
+	function update() {
+		var next = current();
+		var event, handlers, i;
+
+		if (next.type === last.type && next.angle === last.angle) return;
+		last = next;
+
+		try {
+			event = new Event('change');
+		} catch (e) {
+			event = document.createEvent('Event');
+			event.initEvent('change', false, false);
+		}
+
+		handlers = listeners.slice();
+		invoke(orientation.onchange, event);
+		for (i = 0; i < handlers.length; i++) invoke(handlers[i], event);
 	}
 
 	// Find a native impl if it exists
@@ -44,17 +93,35 @@
 	// If the value is not an object, the feature either doesn't exist or is incorrectly implemented
 	if (typeof window.screen.orientation !== 'object') {
 
-		// Attempt to use a dynamic getter, otherwise just set it to the initial value on load
+		last = current();
+
+		Object.defineProperty(orientation, 'type', {
+			enumerable: true,
+			get: function () {
+				return current().type;
+			}
+		});
+		Object.defineProperty(orientation, 'angle', {
+			enumerable: true,
+			get: function () {
+				return current().angle;
+			}
+		});
+
 		try {
 			Object.defineProperty(window.screen, 'orientation', {
-				get: getVal
+				get: function () {
+					return orientation;
+				}
 			});
 		} catch(e1) {
 
 			// screen is read-only in some browsers
 			try {
-				window.screen.orientation = getVal();
+				window.screen.orientation = orientation;
 			} catch (e2) {}
 		}
+
+		window.addEventListener('onorientationchange' in window ? 'orientationchange' : 'resize', update);
 	}
 }());
