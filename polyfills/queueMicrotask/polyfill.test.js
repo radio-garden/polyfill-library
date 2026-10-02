@@ -41,6 +41,50 @@ describe('queueMicrotask', function() {
 		});
 	});
 
+	it('passes the message and the exception to self.onerror', function(done) {
+		var mochaError = self.onerror;
+		var taskError = new Error("uh oh");
+		self.onerror = function (message, source, lineno, colno, error) {
+			self.onerror = mochaError;
+			try {
+				proclaim.isString(message);
+				proclaim.include(message, 'uh oh');
+				proclaim.strictEqual(error, taskError);
+				done();
+			} catch (e) {
+				done(e);
+			}
+			return true;
+		};
+		queueMicrotask(function () {
+			throw taskError;
+		});
+	});
+
+	it('reports a throwing callback before the next callback runs', function(done) {
+		var mochaError = self.onerror;
+		self.onerror = function () { return true; };
+		var log = [];
+		var taskError = new Error('B');
+		function onError(event) {
+			log.push(event.error === taskError ? 'error B' : 'other error');
+		}
+		self.addEventListener('error', onError);
+		queueMicrotask(function () { log.push('A'); });
+		queueMicrotask(function () { log.push('B'); throw taskError; });
+		queueMicrotask(function () { log.push('C'); });
+		queueMicrotask(function () {
+			self.removeEventListener('error', onError);
+			self.onerror = mochaError;
+			try {
+				proclaim.deepEqual(log, ['A', 'B', 'error B', 'C']);
+				done();
+			} catch (e) {
+				done(e);
+			}
+		});
+	});
+
 	it('array elements are inserted in the correct order',  function(done) {
 		var testArray = [];
 		Promise.resolve().then(function() { testArray.push('1')} );
