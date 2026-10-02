@@ -303,6 +303,61 @@ describe('requestIdleCallback', function () {
 		// Keep the even loop busy but not longer than the timeout.
 		sleep(busyFor);
 	});
+
+	it('runs the remaining callbacks when an earlier one throws', function (done) {
+		var mochaError = self.onerror;
+		self.onerror = Function.prototype;
+		var ran = [];
+		requestIdleCallback(function () {
+			throw new Error('idle callback error');
+		});
+		requestIdleCallback(function () {
+			ran.push('second');
+		});
+		setTimeout(function () {
+			self.onerror = mochaError;
+			try {
+				proclaim.deepEqual(ran, ['second']);
+				done();
+			} catch (error) {
+				done(error);
+			}
+		}, 300);
+	});
+
+	it('reports the error of a throwing callback before the next callback runs', function (done) {
+		var mochaError = self.onerror;
+		self.onerror = Function.prototype;
+		var order = [];
+		var reported;
+		var thrown = new Error('idle callback error');
+		var onError = function (event) {
+			reported = event.error;
+			order.push('error:' + (event.error && event.error.message));
+		};
+		self.addEventListener('error', onError);
+		requestIdleCallback(function () {
+			order.push('A');
+		});
+		requestIdleCallback(function () {
+			order.push('B');
+			throw thrown;
+		});
+		requestIdleCallback(function () {
+			order.push('C');
+		});
+		setTimeout(function () {
+			self.removeEventListener('error', onError);
+			self.onerror = mochaError;
+			try {
+				proclaim.deepEqual(order, ['A', 'B', 'error:idle callback error', 'C'], order.join(', '));
+				proclaim.strictEqual(reported, thrown);
+				done();
+			} catch (error) {
+				done(error);
+			}
+		}, 300);
+	});
 });
 
 describe('cancelIdleCallback', function () {
