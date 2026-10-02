@@ -120,4 +120,90 @@ describe('scrolling', function () {
 			}, 700);
 		}, 50);
 	});
+
+	it('Element.prototype.scrollTo({ top: null }) scrolls to 0', function () {
+		box.scrollTo({ top: null });
+		proclaim.strictEqual(box.scrollLeft, 50);
+		proclaim.strictEqual(box.scrollTop, 0);
+	});
+
+	it('Element.prototype.scroll({ left: null }) scrolls to 0', function () {
+		box.scroll({ left: null });
+		proclaim.strictEqual(box.scrollLeft, 0);
+		proclaim.strictEqual(box.scrollTop, 30);
+	});
+
+	it('window.scrollTo({ top: null }) scrolls to 0', function () {
+		spacer = document.createElement('div');
+		spacer.style.cssText = 'width:5000px;height:5000px;';
+		document.body.appendChild(spacer);
+		window.scrollTo(40, 100);
+		window.scrollTo({ top: null });
+		proclaim.strictEqual(window.pageXOffset, 40);
+		proclaim.strictEqual(window.pageYOffset, 0);
+	});
+
+	function expectSmoothScrollStopped(done, start, interrupt, position) {
+		start();
+		setTimeout(function () {
+			interrupt();
+			var stoppedAt = position();
+			setTimeout(function () {
+				try {
+					proclaim.strictEqual(position(), stoppedAt);
+					done();
+				} catch (error) {
+					done(error);
+				}
+			}, 700);
+		}, 50);
+	}
+
+	it('scrollIntoView() stops a running smooth scroll of its scroll container', function (done) {
+		expectSmoothScrollStopped(done, function () {
+			box.scrollTo({ top: 1000, behavior: 'smooth' });
+		}, function () {
+			box.firstChild.scrollIntoView();
+		}, function () {
+			return box.scrollTop;
+		});
+	});
+
+	it('scrollIntoView(false) stops a running smooth scroll of its scroll container', function (done) {
+		expectSmoothScrollStopped(done, function () {
+			box.scrollTo({ top: 1000, behavior: 'smooth' });
+		}, function () {
+			box.firstChild.scrollIntoView(false);
+		}, function () {
+			return box.scrollTop;
+		});
+	});
+
+	it('a scroll of the scrolling element stops a smooth scroll of the window', function (done) {
+		var scrollingElement = document.scrollingElement || document.documentElement;
+		spacer = document.createElement('div');
+		spacer.style.cssText = 'width:5000px;height:5000px;';
+		document.body.appendChild(spacer);
+		expectSmoothScrollStopped(done, function () {
+			window.scrollTo({ top: 1000, behavior: 'smooth' });
+		}, function () {
+			scrollingElement.scrollTo(0, 0);
+		}, function () {
+			return window.pageYOffset;
+		});
+	});
+
+	it('a scroll of the window stops a smooth scroll of the scrolling element', function (done) {
+		var scrollingElement = document.scrollingElement || document.documentElement;
+		spacer = document.createElement('div');
+		spacer.style.cssText = 'width:5000px;height:5000px;';
+		document.body.appendChild(spacer);
+		expectSmoothScrollStopped(done, function () {
+			scrollingElement.scrollTo({ top: 1000, behavior: 'smooth' });
+		}, function () {
+			window.scrollTo(0, 0);
+		}, function () {
+			return window.pageYOffset;
+		});
+	});
 });
