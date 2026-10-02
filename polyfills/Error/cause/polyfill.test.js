@@ -187,11 +187,14 @@ describe('Error statics', function () {
 	}
 
 	if (typeof NativeError.captureStackTrace === 'function') {
-		it('starts the stack at the caller', function () {
-			function makeError() {
-				return new Error('m');
-			}
-			proclaim.include(makeError().stack.split('\n')[1], 'makeError');
+		testCases.forEach(function (testCase) {
+			it('starts the stack of a new ' + testCase.name + ' at the caller', function () {
+				var _Error = testCase._Error;
+				function makeError() {
+					return testCase.arity === 2 ? new _Error([], 'm') : new _Error('m');
+				}
+				proclaim.include(makeError().stack.split('\n')[1], 'makeError');
+			});
 		});
 	}
 });
