@@ -90,7 +90,7 @@
 				}
 
 				case ERROR: {
-					return as(typeof env[value.name] === "function" ? new env[value.name](value.message) : new Error(value.message), index);
+					return as(new env[value.name](value.message), index);
 				}
 
 				case BIGINT:
@@ -117,6 +117,7 @@
 	}
 
 	var EMPTY = "";
+	var ERROR_NAMES = ["Error", "EvalError", "RangeError", "ReferenceError", "SyntaxError", "TypeError", "URIError"];
 	var emptyObject = {};
 
 	function typeOf(value) {
@@ -157,7 +158,7 @@
 		}
 
 		if (value instanceof Error) {
-			return [ERROR, value.name || "Error"];
+			return [ERROR, ERROR_NAMES.indexOf(value.name) === -1 ? "Error" : value.name];
 		}
 
 		return [OBJECT, asString];
