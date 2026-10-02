@@ -112,11 +112,10 @@
 	function scheduleIdleWork() {
 		if (!isIdleScheduled) {
 			isIdleScheduled = true;
-			try {
-				// Safari 9 throws "TypeError: Value is not a sequence"
-				port.postMessage(messageKey, '*');
-			} catch (error) {
+			if (messageChannelSupport) {
 				port.postMessage(messageKey);
+			} else {
+				port.postMessage(messageKey, '*');
 			}
 		}
 	}
